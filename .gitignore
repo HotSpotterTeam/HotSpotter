@@ -9,6 +9,12 @@ dist/
 .env
 .env.local
 
+# Python virtualenvs
+.venv/
+venv/
+env/
+ENV/
+
 ## OS / Editor
 .DS_Store
 .vscode/
@@ -19,3 +25,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Python bytecode / cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
