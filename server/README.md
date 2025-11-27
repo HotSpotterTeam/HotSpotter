@@ -4,7 +4,7 @@ This directory contains a small FastAPI scaffold for the HotSpotter API. The end
 
 Quick start (macOS / zsh):
 
-```bash
+````bash
 # from repo root
 cd server
 
@@ -20,7 +20,15 @@ DATABASE_URL="Secret connection string to the db sent on WhatsApp"
 
 # start dev server
 uvicorn app.main:app --reload --port 8000
-```
+
+# Local database setup:
+
+# create local database
+./create_local_db.sh
+
+Add the following to your .env file:
+DATABASE_URL_LOCAL="postgresql://postgres:postgres@localhost:5432/hotspotter"
+LOCAL_DB=true
 
 Open http://127.0.0.1:8000/docs to explore the auto-generated OpenAPI UI.
 
@@ -47,3 +55,4 @@ alembic downgrade -1
 ```
 
 The generated migration scripts live in `alembic/versions/`.
+````
