@@ -10,7 +10,7 @@ DB_NAME="hotspotter"
 DB_USER="postgres"
 DB_PASSWORD="${POSTGRES_PASSWORD:-postgres}"
 DB_PORT="5432"
-POSTGRES_VERSION="15"
+POSTGRES_VERSION="17"
 
 echo "🐘 Setting up local PostgreSQL database with PostGIS via Docker..."
 
@@ -83,13 +83,14 @@ fi
 if [ "$CONTAINER_EXISTS" = false ]; then
     echo "📦 Creating PostgreSQL with PostGIS container '${CONTAINER_NAME}'..."
     docker run -d \
+        --platform linux/amd64 \
         --name "${CONTAINER_NAME}" \
         -e POSTGRES_USER="${DB_USER}" \
         -e POSTGRES_PASSWORD="${DB_PASSWORD}" \
         -e POSTGRES_DB="${DB_NAME}" \
         -p "${DB_PORT}:5432" \
         -v "${CONTAINER_NAME}-data:/var/lib/postgresql/data" \
-        postgis/postgis:${POSTGRES_VERSION}-3.3
+        postgis/postgis:${POSTGRES_VERSION}-3.5
 
     # Wait for PostgreSQL to be fully ready
     wait_for_postgres || exit 1

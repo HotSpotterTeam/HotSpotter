@@ -2,7 +2,7 @@
 
 This directory contains a small FastAPI scaffold for the HotSpotter API. The endpoints are placeholders that return a JSON object with {"status":"TBD"}. No real logic or persistence is implemented.
 
-Quick start (macOS / zsh):
+Quick start:
 
 ````bash
 # from repo root
@@ -10,7 +10,7 @@ cd server
 
 # create venv (optional but recommended)
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # install dependencies
 pip install -r requirements.txt
@@ -23,8 +23,10 @@ uvicorn app.main:app --reload --port 8000
 
 # Local database setup:
 
-# create local database
-./create_local_db.sh
+# create local database (works on Windows and Mac/Linux)
+python create_local_db.py
+# OR on Mac/Linux:
+# ./create_local_db.sh
 
 Add the following to your .env file:
 DATABASE_URL_LOCAL="postgresql://postgres:postgres@localhost:5432/hotspotter"
@@ -52,7 +54,10 @@ alembic upgrade head
 
 # roll back the last migration
 alembic downgrade -1
-```
+````
 
 The generated migration scripts live in `alembic/versions/`.
-````
+
+```
+
+```
