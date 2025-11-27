@@ -1,33 +1,47 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
-// marker images for Vite
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
-// fix icon paths
-(delete (L.Icon.Default.prototype as any)._getIconUrl);
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-});
+import { Plus } from 'lucide-react';
 
 function InvalidateMapSize({ onLoaded }: { onLoaded?: (v: boolean) => void }) {
   const map = useMap();
   useEffect(() => {
     const t = setTimeout(() => map.invalidateSize(), 250);
-    const onLoad = () => onLoaded?.(true);
+    
+    let hasCalledLoaded = false;
+    const callLoaded = () => {
+      if (!hasCalledLoaded) {
+        hasCalledLoaded = true;
+        onLoaded?.(true);
+      }
+    };
+    
+    // Check if map is already loaded by checking if it has tiles
+    // If tiles are already present, call onLoaded immediately
+    const checkLoaded = () => {
+      if (map.getContainer().querySelector('.leaflet-tile-loaded')) {
+        callLoaded();
+      }
+    };
+    
+    // Check immediately and after a short delay
+    checkLoaded();
+    const checkTimeout = setTimeout(checkLoaded, 100);
+    
+    // Also listen for the load event in case it hasn't fired yet
+    const onLoad = () => callLoaded();
     map.once('load', onLoad);
-    const onTileError = () => setTimeout(() => onLoaded?.(true), 400);
+    
+    const onTileError = () => setTimeout(() => callLoaded(), 400);
     map.on('tileerror', onTileError);
     const onResize = () => map.invalidateSize();
     window.addEventListener('resize', onResize);
+    
     return () => {
       clearTimeout(t);
+      clearTimeout(checkTimeout);
       window.removeEventListener('resize', onResize);
       map.off('tileerror', onTileError);
+      map.off('load', onLoad);
     };
   }, [map, onLoaded]);
   return null;
@@ -82,7 +96,7 @@ export default function MapView({
         onClick={onToggleCreate}
         className="absolute bottom-8 right-8 bg-blue-600 text-white p-4 rounded-full shadow-xl hover:bg-blue-700 transition-all hover:scale-110 z-40"
       >
-        +
+        <Plus size={24} />
       </button>
 
       {!mapLoaded && (
