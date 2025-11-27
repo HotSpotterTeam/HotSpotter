@@ -4,7 +4,9 @@ router = APIRouter()
 
 
 @router.get("/", status_code=status.HTTP_200_OK)
-async def list_events(location: str | None = Query(None), category: str | None = Query(None), status: str | None = Query(None)):
+async def list_events(
+    location: str | None = Query(None), category: str | None = Query(None), status: str | None = Query(None)
+):
     """Get all events (filters supported) - TBD"""
     return {"status": "TBD", "endpoint": "/api/events"}
 
@@ -34,7 +36,9 @@ async def delete_event(id: str = Path(...)):
 
 
 @router.get("/nearby", status_code=status.HTTP_200_OK)
-async def nearby_events(lat: float | None = Query(None), lng: float | None = Query(None), radius: float | None = Query(None)):
+async def nearby_events(
+    lat: float | None = Query(None), lng: float | None = Query(None), radius: float | None = Query(None)
+):
     """Get events near coordinates - TBD"""
     return {"status": "TBD", "endpoint": "/api/events/nearby"}
 
