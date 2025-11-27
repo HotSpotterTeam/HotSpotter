@@ -16,7 +16,9 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
 # Load environment variables early so DATABASE_URL is available.
-load_dotenv()
+# Explicitly load from project root to ensure .env is found regardless of cwd.
+env_path = PROJECT_ROOT / ".env"
+load_dotenv(dotenv_path=env_path)
 
 # Alembic Config object provides access to values within alembic.ini.
 config = context.config
@@ -25,15 +27,24 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Update sqlalchemy.url dynamically from DATABASE_URL, if set.
-database_url = os.getenv("DATABASE_URL")
+# Update sqlalchemy.url dynamically from DATABASE_URL or DATABASE_URL_LOCAL, if set.
+if os.getenv("LOCAL_DB") == "true":
+    database_url = os.getenv("DATABASE_URL_LOCAL")
+else:
+    database_url = os.getenv("DATABASE_URL")
+
 if database_url:
     config.set_main_option("sqlalchemy.url", database_url)
 else:
-    raise RuntimeError(
-        "DATABASE_URL is not set. Alembic needs this value to run migrations. "
-        "Define it in your environment or .env file."
+    env_file = PROJECT_ROOT / ".env"
+    error_msg = (
+        "DATABASE_URL (or DATABASE_URL_LOCAL with LOCAL_DB=true) is not set.\n"
+        f"Alembic needs this value to run migrations.\n"
+        f"Expected .env file at: {env_file}\n"
+        "Define DATABASE_URL in your environment or .env file.\n"
+        "Example: DATABASE_URL=postgresql+psycopg://user:pass@localhost:5432/dbname"
     )
+    raise RuntimeError(error_msg)
 
 # Import metadata after sys.path has been updated.
 from app.models import Base  # noqa: E402
@@ -74,4 +85,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-
