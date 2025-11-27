@@ -28,7 +28,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Update sqlalchemy.url dynamically from DATABASE_URL or DATABASE_URL_LOCAL, if set.
-if os.getenv("LOCAL_DB") == "true":
+if os.getenv("LOCAL_DB"):
     database_url = os.getenv("DATABASE_URL_LOCAL")
 else:
     database_url = os.getenv("DATABASE_URL")
