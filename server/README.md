@@ -15,6 +15,9 @@ source .venv/bin/activate
 # install dependencies
 pip install -r requirements.txt
 
+Create a .env file in the server directory with the following variables:
+DATABASE_URL="Secret connection string to the db sent on WhatsApp"
+
 # start dev server
 uvicorn app.main:app --reload --port 8000
 ```
