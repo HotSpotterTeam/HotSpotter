@@ -1,5 +1,6 @@
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, MetaData
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, MetaData, Time
+from geoalchemy2 import Geometry
 
 
 class Base(DeclarativeBase):
@@ -25,9 +26,9 @@ class Event(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String)
     description = Column(String)
-    location = Column(String)
+    location = Column(Geometry(geometry_type="POINT"))
     date = Column(DateTime)
-    time = Column(String)
+    time = Column(Time)
     category = Column(String)
     status = Column(String)
     owner_id = Column(Integer, ForeignKey("users.id"))
@@ -42,6 +43,6 @@ class Report(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     description = Column(String)
     date = Column(DateTime)
-    time = Column(String)
+    time = Column(Time)
     category = Column(String)
     status = Column(String)
