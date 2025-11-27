@@ -156,4 +156,3 @@ echo "   Start container: docker start ${CONTAINER_NAME}"
 echo "   Remove container: docker rm -f ${CONTAINER_NAME}"
 echo "   View logs:       docker logs ${CONTAINER_NAME}"
 echo ""
-
