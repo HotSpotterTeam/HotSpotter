@@ -4,7 +4,7 @@ import sqlalchemy as sa
 """add postgis extention to postgres"""
 
 revision = "7dde98462458"
-down_revision = "e1a8138c9356"
+down_revision = None
 branch_labels = None
 depends_on = None
 
