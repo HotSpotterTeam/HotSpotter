@@ -6,22 +6,15 @@ import Sidebar from './components/Sidebar';
 import MapView from './components/MapView';
 import TopBar from './components/TopBar';
 import { useQuery } from '@tanstack/react-query';
+import { useEvents } from './queries';
 
-const API_URL = 'http://127.0.0.1:8000';
 
 const HotSpotter = () => {
   const [selectedSpot, setSelectedSpot] = useState<any>(null);
   const [showCreateSpot, setShowCreateSpot] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('all');
+  const { isPending, error, data } = useEvents();
 
-  const { isPending, error, data } = useQuery({
-    queryKey: ['events'],
-    queryFn: () =>
-      fetch(`${API_URL}/api/events`).then((res) =>
-        res.json(),
-      ),
-  })
-
+  console.log(data);
 
 
   const categories = [
@@ -92,7 +85,7 @@ const HotSpotter = () => {
     <div className="h-screen w-full flex flex-col bg-gray-50">
       <TopBar />
       <div className="flex flex-1 overflow-hidden">
-          <Sidebar categories={categories} activeFilter={activeFilter} setActiveFilter={setActiveFilter} spots={spots} onSelectSpot={setSelectedSpot} />
+          <Sidebar categories={categories} spots={spots} onSelectSpot={setSelectedSpot} />
           <MapView spots={spots} onSelectSpot={setSelectedSpot} onToggleCreate={() => setShowCreateSpot(!showCreateSpot)} />
           <SpotDetail selectedSpot={selectedSpot} recentReports={recentReports} onClose={() => setSelectedSpot(null)} />
           <CreateSpotModal show={showCreateSpot} onClose={() => setShowCreateSpot(false)} />
