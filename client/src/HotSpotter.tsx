@@ -5,12 +5,24 @@ import SpotDetail from './components/SpotDetail';
 import Sidebar from './components/Sidebar';
 import MapView from './components/MapView';
 import TopBar from './components/TopBar';
+import { useQuery } from '@tanstack/react-query';
 
+const API_URL = 'http://127.0.0.1:8000';
 
 const HotSpotter = () => {
   const [selectedSpot, setSelectedSpot] = useState<any>(null);
   const [showCreateSpot, setShowCreateSpot] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
+
+  const { isPending, error, data } = useQuery({
+    queryKey: ['events'],
+    queryFn: () =>
+      fetch(`${API_URL}/api/events`).then((res) =>
+        res.json(),
+      ),
+  })
+
+
 
   const categories = [
     { id: 'all', name: 'All', icon: '🗺️', color: 'bg-gray-500' },
