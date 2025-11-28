@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, sessionmaker
 # Load environment variables from .env so local development "just works".
 load_dotenv()
 
-if os.getenv("LOCAL_DB") == "true":
+if os.getenv("LOCAL_DB") is not None:
     _DATABASE_URL = os.getenv("DATABASE_URL_LOCAL")
 else:
     _DATABASE_URL = os.getenv("DATABASE_URL")

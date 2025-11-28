@@ -8,3 +8,4 @@ python-dotenv>=1.0
 alembic>=1.13
 geoalchemy2>=0.11.1
 psycopg2-binary>=2.9.10
+shapely>=2.0.0
