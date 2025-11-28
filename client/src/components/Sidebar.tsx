@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Filter } from 'lucide-react';
 
 export default function Sidebar({
   categories,
-  activeFilter,
-  setActiveFilter,
   spots,
   onSelectSpot,
 }: any) {
+  const [activeFilter, setActiveFilter] = useState('all');
+
   return (
     <div className="w-96 bg-white shadow-lg flex flex-col z-10">
       <div className="p-4 border-b">
