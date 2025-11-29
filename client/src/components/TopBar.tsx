@@ -1,14 +1,18 @@
-import React from 'react';
-import { MapPin, Bell, User } from 'lucide-react';
+import React from "react";
+import { MapPin, Bell, User } from "lucide-react";
+import { useSelector } from "react-redux";
+import { RootState } from "../state/store";
 
 const TopBar = () => {
+  const events = useSelector((state: RootState) => state.events.events);
+  console.log("events", events);
   return (
     <nav className="bg-white shadow-md z-20 px-4 py-3 flex items-center justify-between">
       <div className="flex items-center gap-2">
         <MapPin className="text-blue-600" size={28} />
         <h1 className="text-2xl font-bold text-gray-800">HotSpotter</h1>
       </div>
-      
+
       <div className="flex items-center gap-4">
         <button className="p-2 hover:bg-gray-100 rounded-full relative">
           <Bell size={20} className="text-gray-600" />
@@ -24,4 +28,3 @@ const TopBar = () => {
 };
 
 export default TopBar;
-
