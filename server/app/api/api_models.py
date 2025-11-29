@@ -15,3 +15,29 @@ class CreateEvent(BaseModel):
 
 class Event(CreateEvent):
     id: int
+
+
+class Report(BaseModel):
+    id: int
+    event_id: int
+    user_id: int
+    description: str
+    date: datetime
+    time: time
+    category: str
+    status: str
+
+
+class EventsResponse(BaseModel):
+    status: str
+    data: List[Event]
+
+
+class EventResponse(BaseModel):
+    status: str
+    data: Event
+
+
+class ReportResponse(BaseModel):
+    status: str
+    data: Report

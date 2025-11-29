@@ -1,7 +1,8 @@
 from fastapi import APIRouter, status, Query, Path
 from app.db import get_session
 from app.models import Event
-from app.api.api_models import CreateEvent
+from app.api.api_models import CreateEvent, EventsResponse
+from app.api.api_models import EventResponse
 from geoalchemy2 import WKTElement
 from datetime import datetime, time
 
@@ -11,23 +12,23 @@ router = APIRouter()
 @router.get("/", status_code=status.HTTP_200_OK)
 async def list_events(
     location: str | None = Query(None), category: str | None = Query(None), status: str | None = Query(None)
-):
+) -> EventsResponse:
     """Get all events (filters supported) - TBD"""
     with get_session() as session:
         events = session.query(Event).all()
-        return {"status": "success", "data": [event.to_api_model() for event in events]}
+        return EventsResponse(status="success", data=[event.to_api_model() for event in events])
 
 
 @router.get("/{id}", status_code=status.HTTP_200_OK)
-async def get_event(id: str = Path(...)):
+async def get_event(id: str = Path(...)) -> EventResponse:
     """Get single event with all reports - TBD"""
     with get_session() as session:
         event = session.query(Event).filter(Event.id == id).first()
-        return {"status": "success", "data": event.to_api_model()}
+        return EventResponse(status="success", data=event.to_api_model())
 
 
 @router.post("/", status_code=status.HTTP_200_OK)
-async def create_event(event: CreateEvent):
+async def create_event(event: CreateEvent) -> EventResponse:
     """Create new event (protected)"""
     event_dict = event.model_dump(mode="json")
     event_dict["location"] = WKTElement(f"POINT({event_dict['location'][0]} {event_dict['location'][1]})")
@@ -37,7 +38,7 @@ async def create_event(event: CreateEvent):
     with get_session() as session:
         session.add(event_model)
         session.commit()
-        return {"status": "success", "data": event_model.to_api_model()}
+        return EventResponse(status="success", data=event_model.to_api_model())
 
 
 @router.put("/{id}", status_code=status.HTTP_200_OK)

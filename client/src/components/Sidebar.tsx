@@ -1,13 +1,19 @@
-import React, { useState } from 'react';
-import { Filter } from 'lucide-react';
+import React, { useState } from "react";
+import { Filter } from "lucide-react";
+import { RootState } from "../state/store";
+import { useDispatch, useSelector } from "react-redux";
+import { setSelectedSpot } from "../state/AppSlice";
+import { Event } from "../generated-types";
 
-export default function Sidebar({
-  categories,
-  spots,
-  onSelectSpot,
-}: any) {
-  const [activeFilter, setActiveFilter] = useState('all');
-
+export default function Sidebar({ categories, spots }: any) {
+  const [activeFilter, setActiveFilter] = useState("all");
+  const selectedSpot = useSelector(
+    (state: RootState) => state.app.selectedSpot
+  );
+  const dispatch = useDispatch();
+  const onSelectSpot = (spot: any) => {
+    dispatch(setSelectedSpot(spot as Event | null));
+  };
   return (
     <div className="w-96 bg-white shadow-lg flex flex-col z-10">
       <div className="p-4 border-b">
@@ -33,7 +39,7 @@ export default function Sidebar({
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                 activeFilter === cat.id
                   ? `${cat.color} text-white`
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
               <span className="mr-1">{cat.icon}</span>
@@ -46,7 +52,9 @@ export default function Sidebar({
       <div className="flex-1 overflow-y-auto">
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-gray-800">Nearby Spots</h2>
+            <h2 className="text-lg font-semibold text-gray-800">
+              Nearby Spots
+            </h2>
             <span className="text-sm text-gray-500">{spots.length} active</span>
           </div>
 
@@ -61,20 +69,36 @@ export default function Sidebar({
                   <div className="flex items-center gap-2">
                     <span className="text-2xl">📍</span>
                     <div>
-                      <h3 className="font-semibold text-gray-800">{spot.title}</h3>
-                      <p className="text-sm text-gray-500">{spot.description}</p>
+                      <h3 className="font-semibold text-gray-800">
+                        {spot.title}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {spot.description}
+                      </p>
                     </div>
                   </div>
-                  <span className={`px-2 py-1 text-xs font-medium rounded bg-gray-500 text-white`}>{spot.category}</span>
+                  <span
+                    className={`px-2 py-1 text-xs font-medium rounded bg-gray-500 text-white`}
+                  >
+                    {spot.category}
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between text-sm text-gray-600">
                   <div className="flex items-center gap-3">
-                    <span className="flex items-center gap-1">{spot.lastReport}</span>
-                    <span className="flex items-center gap-1">{spot.reports}</span>
-                    <span className="flex items-center gap-1">{spot.upvotes}</span>
+                    <span className="flex items-center gap-1">
+                      {spot.lastReport}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      {spot.reports}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      {spot.upvotes}
+                    </span>
                   </div>
-                  <span className="text-blue-600 font-medium">{spot.distance}</span>
+                  <span className="text-blue-600 font-medium">
+                    {spot.distance}
+                  </span>
                 </div>
               </div>
             ))}

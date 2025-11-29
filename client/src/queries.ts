@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
 import { useEffect } from "react";
 import { setEvents } from "./state/EventsSlice";
+import { Event } from "./generated-types";
 
 const API_URL =
   import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "http://127.0.0.1:8000";
@@ -16,9 +17,9 @@ export function useEvents() {
 
   useEffect(() => {
     if (data) {
-      dispatch(setEvents(data));
+      dispatch(setEvents(data.data as Event[]));
     }
   }, [data]);
 
-  return { isPending, error, data };
+  return { isPending, error, data: data?.data as Event[] };
 }
