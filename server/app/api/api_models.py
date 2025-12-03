@@ -1,6 +1,26 @@
 from pydantic import BaseModel
 from datetime import datetime, time
-from typing import List
+from typing import List, Optional
+
+
+class GoogleLoginRequest(BaseModel):
+    token: str
+
+
+class UserResponse(BaseModel):
+    id: int
+    username: Optional[str]
+    email: str
+    name: Optional[str]
+    picture: Optional[str]
+
+
+class LoginResponse(BaseModel):
+    status: str
+    message: str
+    access_token: str
+    token_type: str
+    user: UserResponse
 
 
 class CreateEvent(BaseModel):
