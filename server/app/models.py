@@ -1,5 +1,5 @@
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, MetaData, Time
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, MetaData, Time, Boolean
 from geoalchemy2 import Geometry
 from geoalchemy2.shape import to_shape
 
@@ -15,9 +15,12 @@ class User(Base):
 
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
-    username = Column(String, unique=True)
+    username = Column(String, unique=True, nullable=True)
     email = Column(String, unique=True)
-    password = Column(String)
+    password = Column(String, nullable=True)
+    google_id = Column(String, unique=True, nullable=True)
+    name = Column(String, nullable=True)
+    picture = Column(String, nullable=True)
 
 
 class Event(Base):

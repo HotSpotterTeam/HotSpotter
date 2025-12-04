@@ -58,6 +58,13 @@ alembic downgrade -1
 
 The generated migration scripts live in `alembic/versions/`.
 
+# generate jwt secret key
+```bash
+- python -c "import secrets; print(secrets.token_urlsafe(32))"
+````
+- copy and add it to your .env file with JWT_SECRET_KEY= "your_key"
+
+
 ```
 
 ```

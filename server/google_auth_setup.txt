@@ -1,0 +1,71 @@
+THIS IS A GOOGLE AUTH KEY GENERATOR (for now until we have a frontend that will send the key)
+
+Step-by-Step: Get Google OAuth Credentials
+1. Go to Google Cloud Console
+
+Visit: https://console.cloud.google.com/
+
+2. Create or Select Project
+
+Click the project dropdown at the top
+Click "New Project" or select existing project
+
+3. Enable Google+ API (or Google Identity)
+
+In the left menu, go to "APIs & Services" > "Library"
+Search for "Google+ API" or "Google Identity"
+Click on it and click "Enable"
+
+4. Configure OAuth Consent Screen
+
+Go to "APIs & Services" > "OAuth consent screen"
+Choose "External" (for testing)
+Fill in:
+
+App name: "HotSpotter"
+User support email: your email
+Developer contact: your email
+
+
+Click "Save and Continue"
+Skip scopes (click "Save and Continue")
+Add test users: add your Google email
+Click "Save and Continue"
+
+5. Create OAuth Credentials
+
+Go to "APIs & Services" > "Credentials"
+Click "Create Credentials" > "OAuth 2.0 Client ID"
+Choose "Web application"
+Name it: "HotSpotter Web Client"
+Add Authorized JavaScript origins:
+
+http://localhost:3000
+http://localhost:8000
+https://developers.google.com (for OAuth Playground)
+
+
+Add Authorized redirect URIs:
+
+https://developers.google.com/oauthplayground
+
+
+Click "Create"
+
+6. Copy Your Credentials
+You'll see a popup with:
+
+Client ID: 123456789-abcdefg.apps.googleusercontent.com
+Client Secret: GOCSPX-abcd1234...
+
+7. Add to your .env file
+GOOGLE_CLIENT_ID=123456789-abcdefg.apps.googleusercontent.com
+
+8. go to https://developers.google.com/oauthplayground
+on the left side click settings
+check use your own Oauth credentials
+put the client id and secret
+on the right side search for Google OAuth2 API v2 check email and profile
+click on authorize APIS
+click on Exchange authorization code for tokens
+look for "id_token" copy the token and try it in the server - should succeed

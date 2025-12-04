@@ -9,3 +9,8 @@ alembic>=1.13
 geoalchemy2>=0.11.1
 psycopg2-binary>=2.9.10
 shapely>=2.0.0
+
+# auth
+python-jose[cryptography]>= 3.5.0
+google-auth >= 2.43.0
+bcrypt>=5.0.0
