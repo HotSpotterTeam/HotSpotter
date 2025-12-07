@@ -1,9 +1,10 @@
-from fastapi import APIRouter, status, HTTPException
+from fastapi import APIRouter, status, HTTPException, Depends
 from app.db import get_session
 from app.models import User
 from app.api.api_models import UserResponse, LoginResponse, GoogleLoginRequest
 from app.jwt_utils import create_access_token
 from app.google_auth_utils import verify_google_token
+from app.api.auth_utils import get_current_user
 
 router = APIRouter()
 
@@ -80,9 +81,24 @@ async def logout():
 
 
 @router.get("/me", status_code=status.HTTP_200_OK)
-async def me():
-    """Get current user info (protected) - TBD"""
-    return {"status": "TBD", "endpoint": "/api/auth/me"}
+async def get_me(current_user: User = Depends(get_current_user)):
+    """
+    Get current user info from JWT token
+    Used by frontend to restore session after page refresh
+
+    Headers required:
+        Authorization: Bearer <jwt-token>
+    """
+    return {
+        "status": "success",
+        "data": UserResponse(
+            id=current_user.id,
+            username=current_user.username,
+            email=current_user.email,
+            name=current_user.name,
+            picture=current_user.picture
+        )
+    }
 
 
 @router.put("/profile", status_code=status.HTTP_200_OK)
