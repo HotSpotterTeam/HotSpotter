@@ -2,9 +2,13 @@ import React from "react";
 import { MapPin, Bell, User } from "lucide-react";
 import { useSelector } from "react-redux";
 import { RootState } from "../state/store";
+import { useAppSelector } from "../store/hooks";
+import GoogleSignInButton from "./GoogleSignInButton";
+import UserProfile from "./UserProfile";
 
 const TopBar = () => {
   const events = useSelector((state: RootState) => state.events.events);
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
   console.log("events", events);
   return (
     <nav className="bg-white shadow-md z-20 px-4 py-3 flex items-center justify-between">
@@ -14,14 +18,11 @@ const TopBar = () => {
       </div>
 
       <div className="flex items-center gap-4">
-        <button className="p-2 hover:bg-gray-100 rounded-full relative">
-          <Bell size={20} className="text-gray-600" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-        </button>
-        <button className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-full hover:bg-gray-200">
-          <User size={18} className="text-gray-600" />
-          <span className="text-sm font-medium">Profile</span>
-        </button>
+        {isAuthenticated ? (
+          <UserProfile />
+        ) : (
+          <GoogleSignInButton />
+        )}
       </div>
     </nav>
   );
