@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Plus } from 'lucide-react';
+import { useAppSelector } from '../store/hooks';
 
 function InvalidateMapSize({ onLoaded }: { onLoaded?: (v: boolean) => void }) {
   const map = useMap();
@@ -65,6 +66,7 @@ export default function MapView({
   onToggleCreate: () => void;
 }) {
   const [mapLoaded, setMapLoaded] = useState(false);
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
 
   return (
     <div className="w-full h-full relative z-0">
@@ -92,12 +94,15 @@ export default function MapView({
         ))}
       </MapContainer>
 
-      <button
-        onClick={onToggleCreate}
-        className="absolute bottom-8 right-8 bg-blue-600 text-white p-4 rounded-full shadow-xl hover:bg-blue-700 transition-all hover:scale-110 z-40"
-      >
-        <Plus size={24} />
-      </button>
+      {/* Only show button if user is authenticated */}
+      {isAuthenticated && (
+        <button
+          onClick={onToggleCreate}
+          className="absolute bottom-8 right-8 bg-blue-600 text-white p-4 rounded-full shadow-xl hover:bg-blue-700 transition-all hover:scale-110 z-40"
+        >
+          <Plus size={24} />
+        </button>
+      )}
 
       {!mapLoaded && (
         <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center pointer-events-none z-10">
