@@ -13,4 +13,5 @@ shapely>=2.0.0
 # auth
 python-jose[cryptography]>= 3.5.0
 google-auth >= 2.43.0
+requests>=2.31.0
 bcrypt>=5.0.0
