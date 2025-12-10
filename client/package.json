@@ -11,13 +11,15 @@
     "@react-oauth/google": "^0.12.2",
     "@reduxjs/toolkit": "^2.11.0",
     "@tanstack/react-query": "^5.90.11",
+    "formik": "^2.4.9",
     "jwt-decode": "^4.0.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.287.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-leaflet": "^4.2.1",
-    "react-redux": "^9.2.0"
+    "react-redux": "^9.2.0",
+    "yup": "^1.7.1"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.21",

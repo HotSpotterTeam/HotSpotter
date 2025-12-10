@@ -1,13 +1,24 @@
-import { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { Plus } from 'lucide-react';
-import { useAppSelector } from '../store/hooks';
+import { useState, useEffect } from "react";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMap,
+  useMapEvents,
+  Circle,
+} from "react-leaflet";
+import { Plus } from "lucide-react";
+import { useAppSelector } from "../store/hooks";
+import { useSelector } from "react-redux";
+import { RootState } from "../state/store";
+import MapEvents from "./MapEvents";
 
 function InvalidateMapSize({ onLoaded }: { onLoaded?: (v: boolean) => void }) {
   const map = useMap();
   useEffect(() => {
     const t = setTimeout(() => map.invalidateSize(), 250);
-    
+
     let hasCalledLoaded = false;
     const callLoaded = () => {
       if (!hasCalledLoaded) {
@@ -15,36 +26,48 @@ function InvalidateMapSize({ onLoaded }: { onLoaded?: (v: boolean) => void }) {
         onLoaded?.(true);
       }
     };
-    
+
     // Check if map is already loaded by checking if it has tiles
     // If tiles are already present, call onLoaded immediately
     const checkLoaded = () => {
-      if (map.getContainer().querySelector('.leaflet-tile-loaded')) {
+      if (map.getContainer().querySelector(".leaflet-tile-loaded")) {
         callLoaded();
       }
     };
-    
+
     // Check immediately and after a short delay
     checkLoaded();
     const checkTimeout = setTimeout(checkLoaded, 100);
-    
+
     // Also listen for the load event in case it hasn't fired yet
     const onLoad = () => callLoaded();
-    map.once('load', onLoad);
-    
+    map.once("load", onLoad);
+
     const onTileError = () => setTimeout(() => callLoaded(), 400);
-    map.on('tileerror', onTileError);
+    map.on("tileerror", onTileError);
     const onResize = () => map.invalidateSize();
-    window.addEventListener('resize', onResize);
-    
+    window.addEventListener("resize", onResize);
+
     return () => {
       clearTimeout(t);
       clearTimeout(checkTimeout);
-      window.removeEventListener('resize', onResize);
-      map.off('tileerror', onTileError);
-      map.off('load', onLoad);
+      window.removeEventListener("resize", onResize);
+      map.off("tileerror", onTileError);
+      map.off("load", onLoad);
     };
   }, [map, onLoaded]);
+  return null;
+}
+
+function MapCursor({ cursor }: { cursor: string }) {
+  const map = useMap();
+  useEffect(() => {
+    const container = map.getContainer();
+    container.style.cursor = cursor;
+    return () => {
+      container.style.cursor = "";
+    };
+  }, [map, cursor]);
   return null;
 }
 
@@ -67,16 +90,38 @@ export default function MapView({
 }) {
   const [mapLoaded, setMapLoaded] = useState(false);
   const { isAuthenticated } = useAppSelector((state) => state.auth);
-
+  const onChooseLocation = useAppSelector(
+    (state: RootState) => state.app.onChooseLocation
+  );
+  const currentUserLocation = useAppSelector(
+    (state: RootState) => state.app.currentUserLocation
+  );
   return (
     <div className="w-full h-full relative z-0">
-      <MapContainer center={[32.8191, 34.9983]} zoom={13} className="w-full h-full z-0">
+      <MapContainer
+        center={[32.8191, 34.9983]}
+        zoom={13}
+        className="w-full h-full z-0"
+      >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          url="http://{s}.tile.osm.org/{z}/{x}/{y}.png"
         />
 
         <InvalidateMapSize onLoaded={(v) => setMapLoaded(v)} />
+        <MapCursor cursor={onChooseLocation ? "crosshair" : "pointer"} />
+        <MapEvents />
+        {currentUserLocation && (
+          <Circle
+            center={[currentUserLocation.lat, currentUserLocation.lng]}
+            radius={20}
+            color="blue"
+            fillColor="blue"
+            fillOpacity={0.5}
+            opacity={0.5}
+            weight={1}
+          />
+        )}
 
         {spots.map((spot) => (
           <Marker
