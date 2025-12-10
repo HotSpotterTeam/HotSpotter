@@ -1,5 +1,10 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+export type Location = {
+  lat: number;
+  lng: number;
+};
+
 export const appSlice = createSlice({
   name: "app",
   initialState: {
@@ -7,6 +12,9 @@ export const appSlice = createSlice({
     showCreateSpot: false as boolean,
     isLoading: false as boolean,
     error: null as string | null,
+    onChooseLocation: false as boolean,
+    createSpotLocation: null as Location | null,
+    currentUserLocation: null as Location | null,
   },
   reducers: {
     setSelectedSpot: (state, action) => {
@@ -21,10 +29,26 @@ export const appSlice = createSlice({
     setError: (state, action) => {
       state.error = action.payload as string | null;
     },
+    setOnChooseLocation: (state, action) => {
+      state.onChooseLocation = action.payload as boolean;
+    },
+    setCreateSpotLocation: (state, action) => {
+      state.createSpotLocation = action.payload as Location | null;
+    },
+    setCurrentUserLocation: (state, action) => {
+      state.currentUserLocation = action.payload as Location | null;
+    },
   },
 });
 
-export const { setSelectedSpot, setShowCreateSpot, setIsLoading, setError } =
-  appSlice.actions;
+export const {
+  setSelectedSpot,
+  setShowCreateSpot,
+  setIsLoading,
+  setError,
+  setOnChooseLocation,
+  setCreateSpotLocation,
+  setCurrentUserLocation,
+} = appSlice.actions;
 
 export default appSlice.reducer;
