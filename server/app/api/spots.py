@@ -70,8 +70,11 @@ async def list_spots(
                 query = query.order_by(Spot.id.desc())
 
         spots = query.all()
-        # Return list (Manually building dict if SpotResponse/to_api_model needs mapping)
-        return {"status": "success", "data": [spot.to_api_model() for spot in spots]}
+        # Return list matching SpotsResponse model
+        return {
+            "spots": [spot.to_api_model() for spot in spots],
+            "total": len(spots)
+        }
 
 # --- 2. GET SINGLE SPOT ---
 @router.get("/{id}", status_code=status.HTTP_200_OK, response_model=SpotResponse)
@@ -88,32 +91,58 @@ async def create_spot(
     spot_data: CreateSpot,
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Create a new spot.
-    - Default status: is_approved = False (Requires Admin approval).
-    """
-    spot_dict = spot_data.model_dump(mode="json")
-    
-    # PostGIS Location
-    spot_dict["location"] = WKTElement(f"POINT({spot_dict['location'][0]} {spot_dict['location'][1]})")
-
-    is_admin = getattr(current_user, "is_admin", False)
-    initial_approval = True if is_admin else False
-
     with get_session() as session:
+        # Validate spot_type
+        if spot_data.spot_type not in ['permanent', 'temporary']:
+            raise HTTPException(400, "spot_type must be 'permanent' or 'temporary'")
+        
+        # Temporary spots must have expires_at
+        if spot_data.spot_type == 'temporary' and not spot_data.expires_at:
+            raise HTTPException(400, "Temporary spots must have expires_at date")
+        
+        # Permanent spots should not have expires_at
+        if spot_data.spot_type == 'permanent' and spot_data.expires_at:
+            raise HTTPException(400, "Permanent spots cannot have expires_at date")
+        
         new_spot = Spot(
             name=spot_data.name,
             description=spot_data.description,
-            location=spot_dict["location"],
             category=spot_data.category,
+            location=WKTElement(f"POINT({spot_data.location[1]} {spot_data.location[0]})", srid=4326),
+            address=spot_data.address,
+            spot_type=spot_data.spot_type,
+            permanence_reason=spot_data.permanence_reason,
+            expires_at=spot_data.expires_at,
             owner_id=current_user.id,
-            is_approved=initial_approval # Admins get auto-approved
+            source='user',
+            is_approved=False
         )
         
         session.add(new_spot)
         session.commit()
         session.refresh(new_spot)
-        return {"status": "success", "data": new_spot.to_api_model()}
+        
+        return SpotResponse(
+            id=new_spot.id,
+            name=new_spot.name,
+            description=new_spot.description,
+            category=new_spot.category,
+            location=[
+                session.scalar(func.ST_Y(new_spot.location)),
+                session.scalar(func.ST_X(new_spot.location))
+            ],
+            address=new_spot.address,
+            spot_type=new_spot.spot_type,
+            permanence_reason=new_spot.permanence_reason,
+            source=new_spot.source,
+            osm_id=new_spot.osm_id,
+            owner_id=new_spot.owner_id,
+            is_approved=new_spot.is_approved,
+            expires_at=new_spot.expires_at,
+            created_at=new_spot.created_at,
+            updated_at=new_spot.updated_at,
+            last_activity=new_spot.last_activity
+        )
 
 # --- 4. UPDATE SPOT (Owner/Admin) ---
 @router.put("/{id}", status_code=status.HTTP_200_OK, response_model=SpotResponse)

@@ -37,6 +37,7 @@ export default function CreateSpotModal() {
   const queryClient = useQueryClient();
   const { token } = useAppSelector((state) => state.auth);
   const [locationError, setLocationError] = React.useState<string>("");
+  const [showSuccess, setShowSuccess] = React.useState(false);
 
   const createSpotMutation = useMutation({
     mutationFn: async (data: {
@@ -44,14 +45,13 @@ export default function CreateSpotModal() {
       description: string;
       location: [number, number];
       category: string;
-      status: string;
-      date: string;
-      time: string;
+      spot_type: string;
+      address?: string;
     }) => {
       const API_URL =
         import.meta.env.VITE_API_URL?.replace(/\/$/, "") ||
         "http://127.0.0.1:8000";
-      const response = await fetch(`${API_URL}/api/events`, {
+      const response = await fetch(`${API_URL}/api/spots/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -70,13 +70,12 @@ export default function CreateSpotModal() {
       return response.json();
     },
     onSuccess: () => {
-      // Invalidate and refetch events list
-      queryClient.invalidateQueries({ queryKey: ["events"] });
-      // Close modal and reset form
-      onClose();
+      // Invalidate and refetch spots list
+      queryClient.invalidateQueries({ queryKey: ["spots"] });
+      // Show success message
+      setShowSuccess(true);
       // Reset form fields
       formik.resetForm();
-      dispatch(setCreateSpotLocation(null));
     },
   });
 
@@ -94,18 +93,13 @@ export default function CreateSpotModal() {
       }
 
       setLocationError("");
-      // Format time as HH:MM:SS
-      const now = new Date();
-      const timeString = now.toTimeString().split(" ")[0]; // Gets HH:MM:SS format
 
       createSpotMutation.mutate({
         name: values.name.trim(),
         description: values.description.trim() || "",
         location: [createSpotLocation.lat, createSpotLocation.lng],
         category: values.category,
-        status: "pending",
-        date: now.toISOString(),
-        time: timeString,
+        spot_type: "permanent",
       });
     },
   });
@@ -116,6 +110,7 @@ export default function CreateSpotModal() {
     formik.resetForm();
     dispatch(setCreateSpotLocation(null));
     setLocationError("");
+    setShowSuccess(false);
   };
 
   // Clear location error when location is selected
@@ -127,9 +122,45 @@ export default function CreateSpotModal() {
   return showCreateSpot ? (
     <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
       <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">
-          Create New Spot
-        </h2>
+        {showSuccess ? (
+          // Success Message
+          <div className="text-center">
+            <div className="mb-4 flex justify-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <svg
+                  className="w-8 h-8 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+            </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">
+              Spot Created Successfully!
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Your spot has been recorded and sent to admin for approval. You'll be notified once it's approved and visible on the map.
+            </p>
+            <button
+              onClick={onClose}
+              className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium"
+            >
+              Got it!
+            </button>
+          </div>
+        ) : (
+          // Form
+          <>
+            <h2 className="text-xl font-bold text-gray-800 mb-4">
+              Create New Spot
+            </h2>
 
         {(createSpotMutation.isError || locationError) && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 rounded-lg">
@@ -190,11 +221,13 @@ export default function CreateSpotModal() {
               onBlur={formik.handleBlur}
             >
               <option value="">Select a category</option>
-              <option value="Beach">Beach</option>
-              <option value="Parking">Parking</option>
-              <option value="Sports">Sports</option>
-              <option value="Traffic">Traffic</option>
-              <option value="Other">Other</option>
+              <option value="restaurant">Restaurant</option>
+              <option value="cafe">Cafe</option>
+              <option value="bar">Bar</option>
+              <option value="parking">Parking</option>
+              <option value="shop">Shop</option>
+              <option value="community_centre">Community Centre</option>
+              <option value="other">Other</option>
             </select>
             {formik.errors.category && formik.touched.category && (
               <p className="mt-1 text-sm text-red-600">
@@ -280,6 +313,8 @@ export default function CreateSpotModal() {
             </button>
           </div>
         </form>
+        </>
+        )}
       </div>
     </div>
   ) : null;

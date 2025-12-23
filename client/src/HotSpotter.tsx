@@ -77,7 +77,6 @@ const HotSpotter = () => {
       <div className="flex flex-1 overflow-hidden">
         <Sidebar categories={categories} spots={spots} />
         <MapView
-          spots={spots}
           onSelectSpot={setSelectedSpot}
           onToggleCreate={onToggleCreate}
         />

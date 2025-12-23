@@ -1,5 +1,6 @@
 from pydantic import BaseModel
-from datetime import datetime, time
+from datetime import datetime
+
 from typing import List, Optional, Any
 
 
@@ -74,34 +75,58 @@ class ReportResponse(BaseModel):
     data: Report
 
 
-class CreateSpot(BaseModel):
-    name: str
-    description: str
-    location: List[float]
-    category: str
-
-
-class Spot(CreateSpot):
+class SpotResponse(BaseModel):
     id: int
+    name: str
+    description: str | None
+    category: str
+    location: list[float]  # [lat, lng]
+    address: str | None
+    spot_type: str
+    permanence_reason: str | None
+    source: str
+    osm_id: str | None
     owner_id: int
     is_approved: bool
+    expires_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+    last_activity: datetime | None
 
-
-class SpotResponse(BaseModel):
-    status: str
-    data: Spot
+    class Config:
+        from_attributes = True
 
 
 class SpotsResponse(BaseModel):
-    status: str
-    data: List[Spot]
+    """Response model for list of spots"""
+    spots: list[SpotResponse]
+    total: int
+
+    class Config:
+        from_attributes = True
+
+
+class CreateSpot(BaseModel):
+    name: str
+    description: str | None = None
+    category: str
+    location: list[float]  # [lat, lng]
+    address: str | None = None
+    spot_type: str = 'permanent'  # 'permanent' or 'temporary'
+    permanence_reason: str | None = None
+    expires_at: datetime | None = None
 
 
 class UpdateSpot(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    category: Optional[str] = None
-    location: Optional[List[float]] = None
+    name: str | None = None
+    description: str | None = None
+    category: str | None = None
+    location: list[float] | None = None
+    address: str | None = None
+    spot_type: str | None = None
+    permanence_reason: str | None = None
+    expires_at: datetime | None = None
+
 
 class UpdateEvent(BaseModel):
     name: Optional[str] = None

@@ -5,14 +5,14 @@ import {
   Marker,
   Popup,
   useMap,
-  useMapEvents,
   Circle,
 } from "react-leaflet";
-import { Plus } from "lucide-react";
+import { Plus, AlertCircle } from "lucide-react";
 import { useAppSelector } from "../store/hooks";
-import { useSelector } from "react-redux";
 import { RootState } from "../state/store";
 import MapEvents from "./MapEvents";
+import { useSpots, shouldFetchSpots } from "../queries";
+import { TEL_AVIV_DEFAULT } from "../constants";
 
 function InvalidateMapSize({ onLoaded }: { onLoaded?: (v: boolean) => void }) {
   const map = useMap();
@@ -71,20 +71,10 @@ function MapCursor({ cursor }: { cursor: string }) {
   return null;
 }
 
-type Spot = {
-  id: number;
-  title: string;
-  description?: string;
-  lat: number;
-  lng: number;
-};
-
 export default function MapView({
-  spots,
   onSelectSpot,
   onToggleCreate,
 }: {
-  spots: Spot[];
   onSelectSpot: (s: any) => void;
   onToggleCreate: () => void;
 }) {
@@ -96,11 +86,22 @@ export default function MapView({
   const currentUserLocation = useAppSelector(
     (state: RootState) => state.app.currentUserLocation
   );
+  const mapBounds = useAppSelector((state: RootState) => state.app.mapBounds);
+  const mapZoom = useAppSelector((state: RootState) => state.app.mapZoom);
+
+  // Fetch spots based on current map bounds
+  const { spots, total, isPending: spotsLoading } = useSpots(
+    mapBounds || undefined,
+    mapBounds !== null
+  );
+  
+  // Check if we should display spots based on zoom level and count
+  const fetchCheck = shouldFetchSpots(mapZoom, total);
   return (
     <div className="w-full h-full relative z-0">
       <MapContainer
-        center={[32.8191, 34.9983]}
-        zoom={13}
+        center={[TEL_AVIV_DEFAULT.lat, TEL_AVIV_DEFAULT.lng]}
+        zoom={16}
         className="w-full h-full z-0"
       >
         <TileLayer
@@ -123,16 +124,22 @@ export default function MapView({
           />
         )}
 
-        {spots.map((spot) => (
+        {/* Show spots if we should fetch them */}
+        {fetchCheck.shouldFetch && spots?.map((spot) => (
           <Marker
             key={spot.id}
-            position={[spot.lat, spot.lng]}
+            position={[spot.location[0], spot.location[1]]}
             eventHandlers={{ click: () => onSelectSpot(spot) }}
           >
             <Popup>
               <div>
-                <strong>{spot.title}</strong>
-                <div className="text-sm text-gray-600">{spot.description}</div>
+                <strong>{spot.name}</strong>
+                {spot.description && (
+                  <div className="text-sm text-gray-600">{spot.description}</div>
+                )}
+                <div className="text-xs text-gray-500 mt-1">
+                  {spot.category} • {spot.spot_type}
+                </div>
               </div>
             </Popup>
           </Marker>
@@ -149,12 +156,36 @@ export default function MapView({
         </button>
       )}
 
+      {/* Loading states */}
       {!mapLoaded && (
         <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center pointer-events-none z-10">
           <div className="flex flex-col items-center gap-2">
             <div className="w-10 h-10 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div>
             <div className="text-sm text-gray-600">Loading map…</div>
           </div>
+        </div>
+      )}
+
+      {/* Zoom message overlay */}
+      {!fetchCheck.shouldFetch && fetchCheck.message && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-yellow-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2">
+          <AlertCircle size={20} />
+          <span className="font-medium">{fetchCheck.message}</span>
+        </div>
+      )}
+
+      {/* Loading spots indicator */}
+      {spotsLoading && fetchCheck.shouldFetch && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2">
+          <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
+          <span className="text-sm">Loading spots...</span>
+        </div>
+      )}
+
+      {/* Spots count indicator */}
+      {fetchCheck.shouldFetch && spots && spots.length > 0 && !spotsLoading && (
+        <div className="absolute bottom-24 left-4 bg-white px-3 py-2 rounded-lg shadow-md z-50 text-sm text-gray-700">
+          {spots.length} spot{spots.length !== 1 ? 's' : ''} visible
         </div>
       )}
     </div>

@@ -1,4 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
+import { Bounds } from "../queries";
 
 export type Location = {
   lat: number;
@@ -15,6 +16,9 @@ export const appSlice = createSlice({
     onChooseLocation: false as boolean,
     createSpotLocation: null as Location | null,
     currentUserLocation: null as Location | null,
+    mapBounds: null as Bounds | null,
+    mapZoom: 13 as number,
+    shouldFetchSpots: true as boolean,
   },
   reducers: {
     setSelectedSpot: (state, action) => {
@@ -38,6 +42,15 @@ export const appSlice = createSlice({
     setCurrentUserLocation: (state, action) => {
       state.currentUserLocation = action.payload as Location | null;
     },
+    setMapBounds: (state, action) => {
+      state.mapBounds = action.payload as Bounds | null;
+    },
+    setMapZoom: (state, action) => {
+      state.mapZoom = action.payload as number;
+    },
+    setShouldFetchSpots: (state, action) => {
+      state.shouldFetchSpots = action.payload as boolean;
+    },
   },
 });
 
@@ -49,6 +62,9 @@ export const {
   setOnChooseLocation,
   setCreateSpotLocation,
   setCurrentUserLocation,
+  setMapBounds,
+  setMapZoom,
+  setShouldFetchSpots,
 } = appSlice.actions;
 
 export default appSlice.reducer;
