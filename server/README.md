@@ -64,7 +64,31 @@ The generated migration scripts live in `alembic/versions/`.
 ````
 - copy and add it to your .env file with JWT_SECRET_KEY= "your_key"
 
+## Populating Spots from OpenStreetMap
 
+To populate your database with real POI (Points of Interest) data from OpenStreetMap:
+
+1. **Apply all database migrations:**
+```bash
+alembic upgrade head
 ```
 
+2. **Create a user account** (you need a user ID):
+   - Start the server: `uvicorn app.main:app --reload --port 8000`
+   - Log in via Google OAuth or create a user through the API
+   - Note your user ID from the response
+
+3. **Run the OSM import script:**
+```bash
+# Replace bbox with your desired area (min_lat,min_lng,max_lat,max_lng)
+# Replace owner-id with your user ID
+python import_osm_pois.py --bbox "32.7,34.9,32.9,35.1" --owner-id 1
 ```
+
+**Example bounding boxes:**
+- Tel Aviv area: `"32.0,34.7,32.2,34.9"`
+- Haifa area: `"32.7,34.9,32.9,35.1"`
+
+**Note:** The owner-id parameter must be a valid user ID from your database. All imported spots will be automatically approved and assigned to this user.
+
+For more details, see [OSM_IMPORT_README.md](OSM_IMPORT_README.md).
