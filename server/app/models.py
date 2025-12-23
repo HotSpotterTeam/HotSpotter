@@ -58,20 +58,19 @@ class Spot(Base):
 
 
 class Event(Base):
-    """Event model."""
+    """Event model - Temporary happenings at locations."""
 
     __tablename__ = "events"
     id = Column(Integer, primary_key=True)
     name = Column(String)
     description = Column(String)
     location = Column(Geometry(geometry_type="POINT"))
-    date = Column(DateTime)
-    time = Column(Time)
+    start_time = Column(DateTime)
+    end_time = Column(DateTime)
     category = Column(String)
     status = Column(String)
     owner_id = Column(Integer, ForeignKey("users.id"))
     spot_id = Column(Integer, ForeignKey("spots.id"), nullable=True)
-    duration_hours = Column(Integer, default=24)
     reports = relationship("Report", backref="event", cascade="all, delete-orphan")
 
     def to_api_model(self) -> dict:
@@ -86,8 +85,8 @@ class Event(Base):
             "name": self.name,
             "description": self.description,
             "location": coords,
-            "date": self.date.isoformat() if self.date else None,
-            "time": self.time.isoformat() if self.time else None,
+            "start_time": self.start_time.isoformat() if self.start_time else None,
+            "end_time": self.end_time.isoformat() if self.end_time else None,
             "category": self.category,
             "status": self.status,
             "spot_id": self.spot_id,
