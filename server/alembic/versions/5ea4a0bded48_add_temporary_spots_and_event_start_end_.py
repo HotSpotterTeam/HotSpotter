@@ -10,32 +10,88 @@ depends_on = None
 
 
 def upgrade():
-    # Add new columns
-    op.add_column('events', sa.Column('start_time', sa.DateTime(), nullable=True))
-    op.add_column('events', sa.Column('end_time', sa.DateTime(), nullable=True))
-
-    # Migrate existing data: combine date + time into start_time
-    # For end_time, add duration_hours to start_time
+    # Ensure spot_id column exists (may already exist from previous migration)
     op.execute("""
-        UPDATE events 
-        SET start_time = (date + time)::timestamp
-        WHERE date IS NOT NULL AND time IS NOT NULL
+        DO $$ 
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name = 'events' AND column_name = 'spot_id'
+            ) THEN
+                ALTER TABLE events ADD COLUMN spot_id INTEGER REFERENCES spots(id);
+            END IF;
+        END $$;
     """)
 
+    # Add new time columns as nullable first (only if they don't exist)
     op.execute("""
-        UPDATE events 
-        SET end_time = (start_time + (duration_hours || ' hours')::interval)
-        WHERE start_time IS NOT NULL AND duration_hours IS NOT NULL
+        DO $$ 
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name = 'events' AND column_name = 'start_time'
+            ) THEN
+                ALTER TABLE events ADD COLUMN start_time TIMESTAMP;
+            END IF;
+
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name = 'events' AND column_name = 'end_time'
+            ) THEN
+                ALTER TABLE events ADD COLUMN end_time TIMESTAMP;
+            END IF;
+        END $$;
     """)
 
-    # Make columns non-nullable after migration
+    # Migrate existing data if old columns exist
+    op.execute("""
+        DO $$ 
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name = 'events' AND column_name = 'date'
+            ) THEN
+                UPDATE events 
+                SET start_time = (date + time)::timestamp
+                WHERE start_time IS NULL AND date IS NOT NULL AND time IS NOT NULL;
+
+                UPDATE events 
+                SET end_time = (start_time + (duration_hours || ' hours')::interval)
+                WHERE end_time IS NULL AND start_time IS NOT NULL AND duration_hours IS NOT NULL;
+            END IF;
+        END $$;
+    """)
+
+    # Make columns non-nullable
     op.alter_column('events', 'start_time', nullable=False)
     op.alter_column('events', 'end_time', nullable=False)
 
-    # Drop old columns
-    op.drop_column('events', 'duration_hours')
-    op.drop_column('events', 'time')
-    op.drop_column('events', 'date')
+    # Drop old columns if they exist
+    op.execute("""
+        DO $$ 
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name = 'events' AND column_name = 'duration_hours'
+            ) THEN
+                ALTER TABLE events DROP COLUMN duration_hours;
+            END IF;
+
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name = 'events' AND column_name = 'time'
+            ) THEN
+                ALTER TABLE events DROP COLUMN time;
+            END IF;
+
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name = 'events' AND column_name = 'date'
+            ) THEN
+                ALTER TABLE events DROP COLUMN date;
+            END IF;
+        END $$;
+    """)
 
 
 def downgrade():
@@ -56,5 +112,12 @@ def downgrade():
     # Drop new columns
     op.drop_column('events', 'end_time')
     op.drop_column('events', 'start_time')
+
+
+
+
+
+
+
 
 
