@@ -13,6 +13,8 @@ import { RootState } from "../state/store";
 import MapEvents from "./MapEvents";
 import { useSpots, shouldFetchSpots } from "../queries";
 import { TEL_AVIV_DEFAULT } from "../constants";
+import { useSelector } from "react-redux";
+import L from "leaflet";
 
 function InvalidateMapSize({ onLoaded }: { onLoaded?: (v: boolean) => void }) {
   const map = useMap();
@@ -88,6 +90,9 @@ export default function MapView({
   );
   const mapBounds = useAppSelector((state: RootState) => state.app.mapBounds);
   const mapZoom = useAppSelector((state: RootState) => state.app.mapZoom);
+  
+  // Get events from Redux
+  const events = useSelector((state: RootState) => state.events.events);
 
   // Fetch spots based on current map bounds
   const { spots, total, isPending: spotsLoading } = useSpots(
@@ -97,6 +102,26 @@ export default function MapView({
   
   // Check if we should display spots based on zoom level and count
   const fetchCheck = shouldFetchSpots(mapZoom, total);
+  
+  // Custom icons for different marker types
+  const spotIcon = new L.Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  });
+  
+  const eventIcon = new L.Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  });
+  
   return (
     <div className="w-full h-full relative z-0">
       <MapContainer
@@ -127,18 +152,43 @@ export default function MapView({
         {/* Show spots if we should fetch them */}
         {fetchCheck.shouldFetch && spots?.map((spot) => (
           <Marker
-            key={spot.id}
+            key={`spot-${spot.id}`}
             position={[spot.location[0], spot.location[1]]}
+            icon={spotIcon}
             eventHandlers={{ click: () => onSelectSpot(spot) }}
           >
             <Popup>
               <div>
                 <strong>{spot.name}</strong>
+                <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Spot</span>
                 {spot.description && (
                   <div className="text-sm text-gray-600">{spot.description}</div>
                 )}
                 <div className="text-xs text-gray-500 mt-1">
                   {spot.category} • {spot.spot_type}
+                </div>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+        
+        {/* Show events */}
+        {fetchCheck.shouldFetch && events?.map((event: any) => (
+          <Marker
+            key={`event-${event.id}`}
+            position={[event.location[0], event.location[1]]}
+            icon={eventIcon}
+            eventHandlers={{ click: () => onSelectSpot(event) }}
+          >
+            <Popup>
+              <div>
+                <strong>{event.name}</strong>
+                <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Event</span>
+                {event.description && (
+                  <div className="text-sm text-gray-600">{event.description}</div>
+                )}
+                <div className="text-xs text-gray-500 mt-1">
+                  {event.category} • {event.date}
                 </div>
               </div>
             </Popup>
