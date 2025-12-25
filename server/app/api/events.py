@@ -34,8 +34,21 @@ async def list_events(
     with get_session() as session:
         query = session.query(Event)
 
+        if search:
+            conditions = [
+                Event.name.ilike(f"%{search}%"),
+                Event.description.ilike(f"%{search}%"),
+                Event.status.ilike(f"%{search}%"),
+            ]
+            if search.isdigit():
+                conditions.append(Event.id == int(search))
+                conditions.append(Event.owner_id == int(search)) # Search by Owner
+                conditions.append(Event.spot_id == int(search))  # Search by Spot connection
+            
+            query = query.filter(or_(*conditions))
+
         # 1. Standard Filters
-        if status:
+        if status and status != "all": 
             query = query.filter(Event.status == status)
         if category:
             query = query.filter(Event.category == category)

@@ -15,6 +15,7 @@ export const appSlice = createSlice({
     onChooseLocation: false as boolean,
     createSpotLocation: null as Location | null,
     currentUserLocation: null as Location | null,
+    showAdminDashboard: false as boolean,
   },
   reducers: {
     setSelectedSpot: (state, action) => {
@@ -38,6 +39,9 @@ export const appSlice = createSlice({
     setCurrentUserLocation: (state, action) => {
       state.currentUserLocation = action.payload as Location | null;
     },
+    setShowAdminDashboard: (state, action) => {
+      state.showAdminDashboard = action.payload as boolean;
+    },
   },
 });
 
@@ -49,6 +53,7 @@ export const {
   setOnChooseLocation,
   setCreateSpotLocation,
   setCurrentUserLocation,
+  setShowAdminDashboard,
 } = appSlice.actions;
 
 export default appSlice.reducer;

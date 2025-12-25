@@ -91,7 +91,8 @@ async def google_login(request: GoogleLoginRequest):
             username=user.username,
             email=user.email,
             name=user.name,
-            picture=user.picture
+            picture=user.picture,
+            is_admin=user.is_admin
         )
 
         return LoginResponse(
@@ -119,7 +120,8 @@ async def get_me(current_user: User = Depends(get_current_user)):
             username=current_user.username,
             email=current_user.email,
             name=current_user.name,
-            picture=current_user.picture
+            picture=current_user.picture,
+            is_admin=current_user.is_admin
         )
     }
 
