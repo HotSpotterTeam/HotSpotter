@@ -55,6 +55,7 @@ class Event(BaseModel):
     category: str
     status: str
     spot_id: Optional[int] = None
+    owner_id: int
 
 
 class Report(BaseModel):

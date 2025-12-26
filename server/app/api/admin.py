@@ -1,5 +1,5 @@
 from fastapi import APIRouter, status, Depends, HTTPException, Query, Path
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from app.db import get_session
 from app.models import User, Spot, Event, Report
@@ -29,6 +29,7 @@ async def list_users(
     username: Optional[str] = Query(None),
     google_id: Optional[str] = Query(None),
     is_admin: Optional[bool] = Query(None),
+    search: Optional[str] = Query(None),
     current_user: User = Depends(get_current_admin)
 ):
     """
@@ -36,6 +37,21 @@ async def list_users(
     """
     with get_session() as session:
         query = session.query(User)
+
+        if search:
+            # Build a list of conditions
+            conditions = [
+                User.name.ilike(f"%{search}%"),
+                User.email.ilike(f"%{search}%"),
+                User.username.ilike(f"%{search}%"),
+                User.google_id == search
+            ]
+            # If search is a number, also check ID
+            if search.isdigit():
+                conditions.append(User.id == int(search))
+            
+            # Apply OR logic
+            query = query.filter(or_(*conditions))
 
         # Apply filters if provided
         if id:
