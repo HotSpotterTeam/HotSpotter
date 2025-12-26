@@ -1,59 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { 
-  Users, 
-  MapPin, 
-  Calendar, 
-  Flag, 
-  Trash2, 
-  CheckCircle, 
-  Shield, 
-  ShieldAlert, 
-  BarChart3,
-  Search
+  Users, MapPin, Calendar, Flag, Trash2, CheckCircle, 
+  Shield, ShieldAlert, BarChart3, Search
 } from "lucide-react";
 import { useAppSelector } from "../store/hooks";
+import { StatData, User, Spot, Event, Report } from "../generated-types";
 
-// --- Types ---
-interface StatData {
-  users: { total: number; admins: number; regular: number };
-  spots: { total: number; approved: number; pending: number; by_category: any };
-  events: { total: number; active: number; pending: number; by_category: any };
-  reports: { total: number; flagged: number; on_spots: number; on_events: number };
-}
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  is_admin: boolean;
-}
-
-interface Spot {
-  id: number;
-  name: string;
-  category: string;
-  is_approved: boolean;
-  owner_id: number;
-}
-
-interface Event {
-  id: number;
-  name: string;
-  status: string;
-  start_time: string;
-  end_time: string;
-  spot_id?: number;
-  owner_id: number;
-  category: string;
-}
-
-interface Report {
-  id: number;
-  description: string;
-  is_flagged: boolean;
-  spot_id?: number;
-  event_id?: number;
-}
+// Import the API functions
+import * as AdminApi from "../api/adminApi";
 
 const AdminDashboard = () => {
   const { token } = useAppSelector((state) => state.auth);
@@ -66,170 +20,113 @@ const AdminDashboard = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [onlyAdmins, setOnlyAdmins] = useState(false);
   const [spotFilter, setSpotFilter] = useState<"all" | "approved" | "pending">("all");
   const [eventFilter, setEventFilter] = useState<"all" | "active" | "pending">("all");
 
- // Helper: Fetch Wrapper with Auth Header and Better Error Handling
-  const authFetch = async (url: string, options: RequestInit = {}) => {
-    const headers = { 
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}` 
-    };
-    const res = await fetch(url, { ...options, headers });
-    
-    // If error, try to get the specific message from the backend
-    if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        // Throw the specific backend message (errorData.detail) or a fallback
-        throw new Error(errorData.detail || `Request failed: ${res.statusText}`);
-    }
-    
-    return res.json();
-  };
-
-  // --- Data Loading Functions ---
-  const fetchStats = async () => {
-    try {
-      const res = await authFetch("http://localhost:8000/api/admin/stats");
-      setStats(res.data);
-    } catch (err) { console.error(err); }
-  };
-
-  const fetchUsers = async () => {
-  try {
+  // --- Load Data Helpers ---
+  const loadStats = () => AdminApi.getStats(token).then(setStats).catch(console.error);
+  
+  const loadUsers = () => {
     setLoading(true);
-    let url = "http://localhost:8000/api/admin/users?";
-    // Append Search Term
-    if (searchTerm) url += `search=${searchTerm}&`;
-    // Append Admin Filter
-    if (onlyAdmins) url += `is_admin=true&`;
-    const data = await authFetch(url);
-    setUsers(data);
-  } catch (err) { console.error(err); } finally { setLoading(false); }
-};
-
-    // useEffect to trigger fetch when checkbox changes
-    useEffect(() => {
-        if (activeTab === "users") fetchUsers();
-    }, [onlyAdmins]);
-
-  const fetchSpots = async () => {
-    try {
-      setLoading(true);
-      let url = "http://localhost:8000/api/spots/?"; // Start with ?
-      // 1. Search
-      if (searchTerm) url += `search=${searchTerm}&`;
-      // 2. Filter
-      if (spotFilter === "approved") url += `is_approved=true&`;
-      if (spotFilter === "pending") url += `is_approved=false&`;
-      // If "all" return everything
-      const res = await authFetch(url);
-      setSpots(res.data);
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+    AdminApi.getUsers(token, searchTerm, onlyAdmins)
+      .then(setUsers)
+      .catch(console.error)
+      .finally(() => setLoading(false));
   };
 
-  const fetchEvents = async () => {
-    try {
-      setLoading(true);
-      let url = "http://localhost:8000/api/events/?";
-      // 1. Search
-      if (searchTerm) url += `search=${searchTerm}&`;
-      // 2. Filter
-      url += `status=${eventFilter}&`; 
-      const res = await authFetch(url);
-      setEvents(res.data);
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+  const loadSpots = () => {
+    setLoading(true);
+    AdminApi.getSpots(token, searchTerm, spotFilter)
+      .then(setSpots)
+      .catch(console.error)
+      .finally(() => setLoading(false));
   };
 
-  const fetchReports = async () => {
-    try {
-      setLoading(true);
-      const res = await authFetch("http://localhost:8000/api/reports/?is_flagged=true");
-      setReports(res.data);
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+  const loadEvents = () => {
+    setLoading(true);
+    AdminApi.getEvents(token, searchTerm, eventFilter)
+      .then(setEvents)
+      .catch(console.error)
+      .finally(() => setLoading(false));
   };
 
-  // Load data when tab changes
-  useEffect(() => {
-    if (activeTab === "overview") fetchStats();
-    if (activeTab === "users") fetchUsers();
-    if (activeTab === "spots") fetchSpots();
-    if (activeTab === "events") fetchEvents();
-    if (activeTab === "reports") fetchReports();
-  }, [activeTab, token]); // Reload if token or tab changes
+  const loadReports = () => {
+    setLoading(true);
+    AdminApi.getReports(token)
+      .then(setReports)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
 
-  // Re-fetch users when search changes (debounced slightly in real app, simplistic here)
+  // --- Effects ---
+  
+  // 1. Tab Switching
   useEffect(() => {
-    if (activeTab === "users") fetchUsers();
-  }, [searchTerm]);
+    if (activeTab === "overview") loadStats();
+    if (activeTab === "users") loadUsers();
+    if (activeTab === "spots") loadSpots();
+    if (activeTab === "events") loadEvents();
+    if (activeTab === "reports") loadReports();
+  }, [activeTab, token]);
 
-  useEffect(() => {
-    if (activeTab === "spots") fetchSpots();
-    if (activeTab === "events") fetchEvents();
-  }, [searchTerm, spotFilter, eventFilter]);
+  // 2. Filter Changes
+  useEffect(() => { if (activeTab === "users") loadUsers(); }, [searchTerm, onlyAdmins]);
+  useEffect(() => { if (activeTab === "spots") loadSpots(); }, [searchTerm, spotFilter]);
+  useEffect(() => { if (activeTab === "events") loadEvents(); }, [searchTerm, eventFilter]);
+
 
   // --- Action Handlers ---
 
-  // 1. Users
   const handleDeleteUser = async (id: number) => {
-  if (!window.confirm("Are you sure? This will delete the user and ALL their content.")) return;
-  try {
-    await authFetch(`http://localhost:8000/api/admin/users/${id}`, { method: "DELETE" });
-    setUsers(users.filter(u => u.id !== id));
-  } catch (err: any) { 
-    alert(err.message); 
-  }
-};
+    if (!window.confirm("Are you sure? This will delete the user and ALL their content.")) return;
+    try {
+      await AdminApi.deleteUser(token, id);
+      setUsers(users.filter(u => u.id !== id));
+    } catch (err: any) { alert(err.message); }
+  };
 
   const handleToggleRole = async (user: User) => {
     const action = user.is_admin ? "Remove Admin" : "Make Admin";
     if (!window.confirm(`Are you sure you want to ${action} rights for ${user.email}?`)) return;
-    
     try {
-      await authFetch(`http://localhost:8000/api/admin/users/${user.id}/role`, { method: "PUT" });
+      await AdminApi.toggleUserRole(token, user.id);
       setUsers(users.map(u => u.id === user.id ? { ...u, is_admin: !u.is_admin } : u));
-    } catch (err: any) { 
-      // Now this alert will show "You cannot demote yourself"
-      alert(err.message); 
-    }
+    } catch (err: any) { alert(err.message); }
   };
 
-  // 2. Spots
   const handleDeleteSpot = async (id: number) => {
     if (!window.confirm("Delete this spot permanently?")) return;
     try {
-      await authFetch(`http://localhost:8000/api/spots/${id}`, { method: "DELETE" });
+      await AdminApi.deleteSpot(token, id);
       setSpots(spots.filter(s => s.id !== id));
-    } catch (err) { alert("Failed to delete spot"); }
+    } catch (err: any) { alert("Failed to delete spot"); }
   };
 
   const handleApproveSpot = async (id: number) => {
     try {
-      await authFetch(`http://localhost:8000/api/spots/${id}/approve`, { method: "PUT" });
+      await AdminApi.approveSpot(token, id);
       setSpots(spots.map(s => s.id === id ? { ...s, is_approved: true } : s));
-    } catch (err) { alert("Failed to approve spot"); }
+    } catch (err: any) { alert("Failed to approve spot"); }
   };
 
-  // 3. Events
   const handleDeleteEvent = async (id: number) => {
     if (!window.confirm("Delete this event permanently?")) return;
     try {
-      await authFetch(`http://localhost:8000/api/events/${id}`, { method: "DELETE" });
+      await AdminApi.deleteEvent(token, id);
       setEvents(events.filter(e => e.id !== id));
-    } catch (err) { alert("Failed to delete event"); }
+    } catch (err: any) { alert("Failed to delete event"); }
   };
 
-  // 4. Reports
   const handleDismissReport = async (id: number) => {
-     // Assuming we want to "Unflag" it to remove it from this list
      try {
-       await authFetch(`http://localhost:8000/api/reports/${id}/unflag`, { method: "PUT" });
+       await AdminApi.dismissReport(token, id);
        setReports(reports.filter(r => r.id !== id));
-     } catch (err) { alert("Failed to dismiss report"); }
+     } catch (err: any) { alert("Failed to dismiss report"); }
   };
-
 
   // --- Render Helpers ---
   const TabButton = ({ id, label, icon: Icon }: any) => (
