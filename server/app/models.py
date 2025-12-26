@@ -10,6 +10,29 @@ class Base(DeclarativeBase):
 
     metadata = MetaData()
 
+class Http_Log(Base):
+    """HTTP Log model."""
+
+    __tablename__ = "http-logs"
+    id = Column(String, primary_key=True)
+    request_id = Column(String, nullable=True)
+    source_url = Column(String, nullable=True)
+    dest_url = Column(String, nullable=True)
+    action = Column(String, nullable=True)
+    headers = Column(String, nullable=True)  # Store as JSON string
+    params = Column(String, nullable=True)   # Store as JSON string
+
+    def to_api_model(self) -> dict:
+        """Serialize the ORM model into a JSON-friendly dict."""
+        return {
+            "id": self.id,
+            "request_id": self.request_id,
+            "source_url": self.source_url,
+            "dest_url": self.dest_url,
+            "action": self.action,
+            "headers": self.headers,
+            "params": self.params,
+        }
 
 class User(Base):
     """User model."""

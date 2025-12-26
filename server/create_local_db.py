@@ -16,7 +16,7 @@ CONTAINER_NAME = "hotspotter-db"
 DB_NAME = "hotspotter"
 DB_USER = "postgres"
 DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
-DB_PORT = "5432"
+DB_PORT = "5440"
 POSTGRES_VERSION = "17"
 POSTGIS_VERSION = "3.5"
 
