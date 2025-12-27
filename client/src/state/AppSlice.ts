@@ -1,4 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
+import { Event, Spot } from "../generated-types";
 
 export type Location = {
   lat: number;
@@ -8,7 +9,8 @@ export type Location = {
 export const appSlice = createSlice({
   name: "app",
   initialState: {
-    selectedSpot: null as Event | null,
+    selectedSpot: null as Spot | null,
+    selectedEvent: null as Event | null,
     showCreateSpot: false as boolean,
     isLoading: false as boolean,
     error: null as string | null,
@@ -19,7 +21,10 @@ export const appSlice = createSlice({
   },
   reducers: {
     setSelectedSpot: (state, action) => {
-      state.selectedSpot = action.payload as Event | null;
+      state.selectedSpot = action.payload as Spot | null;
+    },
+    setSelectedEvent: (state, action) => {
+      state.selectedEvent = action.payload as Event | null;
     },
     setShowCreateSpot: (state, action) => {
       state.showCreateSpot = action.payload as boolean;
@@ -47,6 +52,7 @@ export const appSlice = createSlice({
 
 export const {
   setSelectedSpot,
+  setSelectedEvent,
   setShowCreateSpot,
   setIsLoading,
   setError,

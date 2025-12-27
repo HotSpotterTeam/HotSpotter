@@ -11,15 +11,26 @@ export function useEvents() {
   const dispatch = useDispatch();
   const { isPending, error, data } = useQuery({
     queryKey: ["events"],
-    queryFn: () => fetch(`${API_URL}/api/events`).then((res) => res.json()),
+    queryFn: async () => {
+      const response = await fetch(`${API_URL}/api/events`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch events: ${response.statusText}`);
+      }
+      const json = await response.json();
+      console.log("Events API response:", json);
+      return json;
+    },
     staleTime: 1000 * 60 * 5,
   });
 
   useEffect(() => {
     if (data) {
-      dispatch(setEvents(data.data as Event[]));
+      console.log("Dispatching events to store:", data);
+      // Handle both response formats: { data: Event[] } or Event[] directly
+      const events = Array.isArray(data) ? data : (data.data || []);
+      dispatch(setEvents(events as Event[]));
     }
-  }, [data]);
+  }, [data, dispatch]);
 
-  return { isPending, error, data: data?.data as Event[] };
+  return { isPending, error, data: data?.data as Event[] || (Array.isArray(data) ? data : []) };
 }

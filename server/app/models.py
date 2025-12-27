@@ -90,7 +90,7 @@ class Event(Base):
             "category": self.category,
             "status": self.status,
             "spot_id": self.spot_id,
-            "owner_id": self.owner_id,
+            "owner_id": self.owner_id if self.owner_id is not None else None,
         }
 
 
