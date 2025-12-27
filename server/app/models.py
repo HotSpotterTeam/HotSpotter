@@ -17,21 +17,23 @@ class Http_Log(Base):
     id = Column(String, primary_key=True)
     request_id = Column(String, nullable=True)
     source_url = Column(String, nullable=True)
+    start_time = Column(DateTime, nullable=True)
     dest_url = Column(String, nullable=True)
     action = Column(String, nullable=True)
     headers = Column(String, nullable=True)  # Store as JSON string
-    params = Column(String, nullable=True)   # Store as JSON string
-
+    data = Column(String, nullable=True)   # Store as JSON string
+    
     def to_api_model(self) -> dict:
         """Serialize the ORM model into a JSON-friendly dict."""
         return {
             "id": self.id,
             "request_id": self.request_id,
             "source_url": self.source_url,
+            "start_time": self.start_time,
             "dest_url": self.dest_url,
             "action": self.action,
             "headers": self.headers,
-            "params": self.params,
+            "data": self.data,
         }
 
 class User(Base):

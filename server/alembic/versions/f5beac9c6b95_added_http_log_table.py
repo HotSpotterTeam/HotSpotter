@@ -19,12 +19,13 @@ def upgrade() -> None:
         op.create_table(
             'http-logs',
             sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('start-time', sa.DateTime(), nullable=True),
             sa.Column('request-id', sa.String(), nullable=True),
             sa.Column('source-url', sa.String(), nullable=True),
             sa.Column('dest-url', sa.String(), nullable=True),
             sa.Column('action', sa.String(), nullable=True),
             sa.Column('headers', sa.JSON(), nullable=True),
-            sa.Column('params', sa.JSON(), nullable=True),
+            sa.Column('data', sa.JSON(), nullable=True),
             sa.PrimaryKeyConstraint('id')
         )
 
