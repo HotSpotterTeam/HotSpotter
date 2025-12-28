@@ -29,7 +29,7 @@ python create_local_db.py
 # ./create_local_db.sh
 
 Add the following to your .env file:
-DATABASE_URL_LOCAL="postgresql://postgres:postgres@localhost:5440/hotspotter"
+DATABASE_URL_LOCAL="postgresql://postgres:postgres@localhost:5432/hotspotter"
 LOCAL_DB=true
 
 Open http://127.0.0.1:8000/docs to explore the auto-generated OpenAPI UI.

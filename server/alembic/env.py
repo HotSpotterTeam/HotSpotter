@@ -42,7 +42,7 @@ else:
         f"Alembic needs this value to run migrations.\n"
         f"Expected .env file at: {env_file}\n"
         "Define DATABASE_URL in your environment or .env file.\n"
-        "Example: DATABASE_URL=postgresql+psycopg://user:pass@localhost:5440/dbname"
+        "Example: DATABASE_URL=postgresql+psycopg://user:pass@localhost:5432/dbname"
     )
     raise RuntimeError(error_msg)
 

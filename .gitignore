@@ -30,4 +30,3 @@ pnpm-debug.log*
 __pycache__/
 *.py[cod]
 .pytest_cache/
-server/alembic.ini

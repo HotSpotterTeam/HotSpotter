@@ -9,7 +9,7 @@ CONTAINER_NAME="hotspotter-db"
 DB_NAME="hotspotter"
 DB_USER="postgres"
 DB_PASSWORD="${POSTGRES_PASSWORD:-postgres}"
-DB_PORT="5440"
+DB_PORT="5432"
 POSTGRES_VERSION="17"
 
 echo "🐘 Setting up local PostgreSQL database with PostGIS via Docker..."
