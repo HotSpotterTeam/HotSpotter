@@ -3,6 +3,8 @@ import { useDispatch } from "react-redux";
 import { useEffect } from "react";
 import { setEvents } from "./state/EventsSlice";
 import { Event } from "./generated-types";
+import { useAppSelector } from "./store/hooks";
+import { RootState } from "./state/store";
 
 const API_URL =
   import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "http://127.0.0.1:8000";
@@ -42,9 +44,12 @@ export type Spot = {
   address?: string;
 };
 
-export function useSpots(bounds?: Bounds, enabled = true) {
-  const queryKey = bounds
-    ? ["spots", bounds.minLat, bounds.maxLat, bounds.minLng, bounds.maxLng]
+export function useSpots() {
+  const mapBounds = useAppSelector((state: RootState) => state.app.mapBounds);
+  const mapZoom = useAppSelector((state: RootState) => state.app.mapZoom);
+  
+  const queryKey = mapBounds
+    ? ["spots", mapBounds.minLat, mapBounds.maxLat, mapBounds.minLng, mapBounds.maxLng]
     : ["spots"];
 
   const { isPending, error, data, refetch } = useQuery({
@@ -52,12 +57,12 @@ export function useSpots(bounds?: Bounds, enabled = true) {
     queryFn: async () => {
       let url = `${API_URL}/api/spots/`;
       
-      if (bounds) {
+      if (mapBounds) {
         const params = new URLSearchParams({
-          min_lat: bounds.minLat.toString(),
-          max_lat: bounds.maxLat.toString(),
-          min_lng: bounds.minLng.toString(),
-          max_lng: bounds.maxLng.toString(),
+          min_lat: mapBounds.minLat.toString(),
+          max_lat: mapBounds.maxLat.toString(),
+          min_lng: mapBounds.minLng.toString(),
+          max_lng: mapBounds.maxLng.toString(),
         });
         url += `?${params.toString()}`;
       }
@@ -67,15 +72,22 @@ export function useSpots(bounds?: Bounds, enabled = true) {
       return res.json();
     },
     staleTime: 1000 * 60 * 10, // Cache for 10 minutes
-    enabled,
+    enabled: mapBounds !== null,
   });
+  
+  const total = data?.total || 0;
+  const spots = data?.spots as Spot[] || [];
+  
+  // Check if we should display spots based on zoom level and count
+  const fetchCheck = shouldFetchSpots(mapZoom, total);
 
   return { 
     isPending, 
     error, 
-    spots: data?.spots as Spot[] || [], 
-    total: data?.total || 0,
-    refetch 
+    spots, 
+    total,
+    refetch,
+    fetchCheck
   };
 }
 

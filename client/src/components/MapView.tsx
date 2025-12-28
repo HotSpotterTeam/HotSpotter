@@ -11,7 +11,7 @@ import { Plus, AlertCircle } from "lucide-react";
 import { useAppSelector } from "../store/hooks";
 import { RootState } from "../state/store";
 import MapEvents from "./MapEvents";
-import { useSpots, shouldFetchSpots } from "../queries";
+import { useSpots } from "../queries";
 import { TEL_AVIV_DEFAULT } from "../constants";
 import { useSelector } from "react-redux";
 import L from "leaflet";
@@ -88,20 +88,12 @@ export default function MapView({
   const currentUserLocation = useAppSelector(
     (state: RootState) => state.app.currentUserLocation
   );
-  const mapBounds = useAppSelector((state: RootState) => state.app.mapBounds);
-  const mapZoom = useAppSelector((state: RootState) => state.app.mapZoom);
   
   // Get events from Redux
   const events = useSelector((state: RootState) => state.events.events);
 
   // Fetch spots based on current map bounds
-  const { spots, total, isPending: spotsLoading } = useSpots(
-    mapBounds || undefined,
-    mapBounds !== null
-  );
-  
-  // Check if we should display spots based on zoom level and count
-  const fetchCheck = shouldFetchSpots(mapZoom, total);
+  const { spots, total, isPending: spotsLoading, fetchCheck } = useSpots();
   
   // Custom icons for different marker types
   const spotIcon = new L.Icon({
