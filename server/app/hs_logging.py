@@ -1,7 +1,7 @@
 from fastapi import Request, Response
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 import asyncio
 from app.db import get_session
@@ -30,7 +30,7 @@ async def middleware_http_request_logger(request: Request, call_next):
 
     request_session_id = str(uuid.uuid4())
     request.state.request_session_id = request_session_id
-    request.state.start_time = datetime.now()
+    request.state.start_time = datetime.now(timezone.utc).replace(microsecond=0)
 
     body = await request.body()
 
@@ -46,21 +46,31 @@ async def middleware_http_request_logger(request: Request, call_next):
     
     try:
         response = await call_next(request_copy)
-        response_body = await get_response_body(response)
+        b_response_body = await get_response_body(response)
+        response_time = datetime.now(timezone.utc).replace(microsecond=0)
+        response_body = b_response_body.decode("utf-8", errors="ignore")
+        status_code = response.status_code
         response_copy =  Response( 
-            content=response_body,
+            content=b_response_body,
             status_code=response.status_code,
             headers=dict(response.headers),
             media_type=response.media_type,
         )
 
         return response_copy
+    
+    except Exception as e:
+        logger.exception(f"Exception during request processing: {e}")
+        response_time = datetime.now()
+        status_code = 500
+        response_body = f"Internal Server Error. /n {str(e)}"
+        raise
     #COONTINUE WITH RESPONSE ETC 
     
     finally:
-
         try:
             await logging_task
+            write_response_to_db(status_code, response_body, request_session_id, response_time)
         except Exception as e:
             logger.exception(f"Failed to log HTTP request, exception {e}")
             
@@ -83,10 +93,9 @@ async def log_http_request(request, request_body):
     headers = dict(request.headers)
 
     if request_body:
-        body_str = request_body.decode("utf-8", errors="replace")
-        data = json.loads(body_str)
+        request_data = request_body.decode("utf-8", errors="replace")
     else: 
-        data = None
+        request_data = None
       
     log_data = {
         "id" : request_session_id,
@@ -96,7 +105,7 @@ async def log_http_request(request, request_body):
         "dest_url": dest_url,
         "action": f"{method}",
         "headers": json.dumps(headers),
-        "data": json.dumps(data)
+        "data": request_data
     }
 
     write_log_to_db(log_data)
@@ -107,4 +116,14 @@ def write_log_to_db(log_data: dict):
         log_record = Http_Log(**log_data)
         session.add(log_record)
         session.commit()
+
+def write_response_to_db(status_code, response_body, request_session_id, response_time):
+    with get_session() as session:
+        log_record = session.query(Http_Log).filter(Http_Log.request_id == request_session_id).first()
+        if log_record:
+            # Persist to the correct ORM column names
+            log_record.response_status_code = status_code
+            log_record.response_data = response_body
+            log_record.end_time = response_time
+            session.commit()
 

@@ -22,6 +22,9 @@ class Http_Log(Base):
     action = Column(String, nullable=True)
     headers = Column(String, nullable=True)  # Store as JSON string
     data = Column(String, nullable=True)   # Store as JSON string
+    response_status_code = Column(Integer, nullable=True)
+    response_data = Column(String, nullable=True)  # Store as string
+    end_time = Column(DateTime, nullable=True)
     
     def to_api_model(self) -> dict:
         """Serialize the ORM model into a JSON-friendly dict."""
@@ -34,6 +37,9 @@ class Http_Log(Base):
             "action": self.action,
             "headers": self.headers,
             "data": self.data,
+            "response_status_code": self.response_status_code,
+            "response_data": self.response_data,
+            "end_time": self.end_time
         }
 
 class User(Base):
