@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timezone
 import uuid
 import asyncio
+import re
 from app.db import get_session
 from app.models import Http_Log
 from starlette.requests import Request as StarletteRequest
@@ -21,21 +22,23 @@ def get_request_start_time(request: Request) -> datetime | None:
     return start_time
 
 async def middleware_http_request_logger(request: Request, call_next):
-    """Middleware to log incoming HTTP requests to the database (non-blocking).
+    """Middleware to log incoming HTTP requests and responses to the database (non-blocking).
 
     Builds a `Log` record with fields matching `models.Log` and schedules a
     background thread to write it so we don't block request handling.
     """
 
-
-    request_session_id = str(uuid.uuid4())
+    # Adding data to request
+    request.state.start_time = datetime.now(timezone.utc).replace(microsecond=0).replace(tzinfo=None)
+    request_session_id =f"{get_request_start_time(request)}_{str(uuid.uuid4())}"
+    request_session_id = re.sub(r"\s+", "_", request_session_id)
     request.state.request_session_id = request_session_id
-    request.state.start_time = datetime.now(timezone.utc).replace(microsecond=0)
-
+    
+    # Scheduling logging task in paralel in order to not block the request processing
     body = await request.body()
-
     logging_task = asyncio.create_task(log_http_request(request, body))
 
+    # Re creating the request object since body can be read only once
     async def receive():
         return {
             "type": "http.request",
@@ -45,9 +48,12 @@ async def middleware_http_request_logger(request: Request, call_next):
     request_copy = StarletteRequest(request.scope, receive)
     
     try:
+        # Processing the request
         response = await call_next(request_copy)
+
+        # Processing the response
         b_response_body = await get_response_body(response)
-        response_time = datetime.now(timezone.utc).replace(microsecond=0)
+        response_time = datetime.now(timezone.utc).replace(microsecond=0).replace(tzinfo=None)
         response_body = b_response_body.decode("utf-8", errors="ignore")
         status_code = response.status_code
         response_copy =  Response( 
@@ -61,15 +67,15 @@ async def middleware_http_request_logger(request: Request, call_next):
     
     except Exception as e:
         logger.exception(f"Exception during request processing: {e}")
-        response_time = datetime.now()
+        response_time = datetime.now(timezone.utc).replace(microsecond=0).replace(tzinfo=None)
         status_code = 500
-        response_body = f"Internal Server Error. /n {str(e)}"
+        response_body = f"Internal Server Error. {str(e)}"
         raise
-    #COONTINUE WITH RESPONSE ETC 
     
     finally:
         try:
             await logging_task
+            # Adding response to db 
             write_response_to_db(status_code, response_body, request_session_id, response_time)
         except Exception as e:
             logger.exception(f"Failed to log HTTP request, exception {e}")
@@ -121,7 +127,6 @@ def write_response_to_db(status_code, response_body, request_session_id, respons
     with get_session() as session:
         log_record = session.query(Http_Log).filter(Http_Log.request_id == request_session_id).first()
         if log_record:
-            # Persist to the correct ORM column names
             log_record.response_status_code = status_code
             log_record.response_data = response_body
             log_record.end_time = response_time
