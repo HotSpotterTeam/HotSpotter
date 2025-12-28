@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useMapEvents } from "react-leaflet";
 import { useAppSelector } from "../store/hooks";
 import {
@@ -6,26 +6,61 @@ import {
   setCurrentUserLocation,
   setOnChooseLocation,
   setShowCreateSpot,
+  setMapBounds,
+  setMapZoom,
 } from "../state/AppSlice";
 import { useDispatch } from "react-redux";
+import { Bounds } from "../queries";
+import { TEL_AVIV_DEFAULT } from "../constants";
 
 export default function MapEvents() {
   const onChooseLocation = useAppSelector(
     (state) => state.app.onChooseLocation
   );
   const dispatch = useDispatch();
+  const hasCenteredRef = useRef(false);
+  const updateTimeoutRef = useRef<NodeJS.Timeout>();
+
+  const updateBounds = useCallback(() => {
+    const bounds = map.getBounds();
+    const zoom = map.getZoom();
+    
+    const mapBounds: Bounds = {
+      minLat: bounds.getSouth(),
+      maxLat: bounds.getNorth(),
+      minLng: bounds.getWest(),
+      maxLng: bounds.getEast(),
+    };
+    
+    dispatch(setMapBounds(mapBounds));
+    dispatch(setMapZoom(zoom));
+  }, []);
+
+  const debouncedUpdateBounds = useCallback(() => {
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+    updateTimeoutRef.current = setTimeout(() => {
+      updateBounds();
+    }, 500); // Wait 500ms after user stops moving/zooming
+  }, [updateBounds]);
+
   const map = useMapEvents({
     click: (e) => {
-      console.log(e);
       if (onChooseLocation) {
         map.setView(e.latlng, 13);
-        // Convert LatLng object to plain serializable object
         dispatch(
           setCreateSpotLocation({ lat: e.latlng.lat, lng: e.latlng.lng })
         );
         dispatch(setOnChooseLocation(false));
         dispatch(setShowCreateSpot(true));
       }
+    },
+    moveend: () => {
+      debouncedUpdateBounds();
+    },
+    zoomend: () => {
+      debouncedUpdateBounds();
     },
     locationfound: (e) => {
       console.log("User location found:", e);
@@ -35,12 +70,18 @@ export default function MapEvents() {
           lng: e.latlng.lng,
         })
       );
-      // Optionally center the map on user's location
-      map.setView(e.latlng, 16);
+      if (!hasCenteredRef.current) {
+        map.setView(e.latlng, 16);
+        hasCenteredRef.current = true;
+      }
     },
     locationerror: (e) => {
       console.error("Location error:", e);
-      // Handle location error (user denied permission, etc.)
+      // Center on Tel Aviv if location fails
+      if (!hasCenteredRef.current) {
+        map.setView([TEL_AVIV_DEFAULT.lat, TEL_AVIV_DEFAULT.lng], 16);
+        hasCenteredRef.current = true;
+      }
     },
   });
 
