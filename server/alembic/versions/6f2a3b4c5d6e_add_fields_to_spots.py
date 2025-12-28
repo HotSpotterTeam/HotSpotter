@@ -6,7 +6,7 @@ from sqlalchemy.engine.reflection import Inspector
 """add missing spot fields"""
 
 revision = '6f2a3b4c5d6e'
-down_revision = '39d1ae16c5eb'
+down_revision = '5ea4a0bded48'
 branch_labels = None
 depends_on = None
 
