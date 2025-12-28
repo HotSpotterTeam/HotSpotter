@@ -35,6 +35,18 @@ async def list_spots(
     with get_session() as session:
         query = session.query(Spot)
 
+        if search:
+            conditions = [
+                Spot.name.ilike(f"%{search}%"),
+                Spot.category.ilike(f"%{search}%"),
+                Spot.description.ilike(f"%{search}%"),
+            ]
+            if search.isdigit():
+                conditions.append(Spot.id == int(search))
+                conditions.append(Spot.owner_id == int(search)) # Search by Owner ID
+            
+            query = query.filter(or_(*conditions))
+
         # 1. Standard Filters
         query = query.filter(Spot.is_approved == is_approved)
         

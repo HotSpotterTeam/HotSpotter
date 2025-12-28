@@ -1,14 +1,20 @@
 import React from "react";
-import { MapPin, Bell, User } from "lucide-react";
-import { useSelector } from "react-redux";
+import { MapPin, Bell, User, LayoutDashboard } from "lucide-react";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../state/store";
 import { useAppSelector } from "../store/hooks";
 import GoogleSignInButton from "./GoogleSignInButton";
 import UserProfile from "./UserProfile";
+import { setShowAdminDashboard } from "../state/AppSlice";
 
 const TopBar = () => {
   const events = useSelector((state: RootState) => state.events.events);
-  const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, user } = useAppSelector((state) => state.auth);
+  const showAdminDashboard = useAppSelector((state: RootState) => state.app.showAdminDashboard);
+  const dispatch = useDispatch();
+  const handleAdminClick = () => {
+  dispatch(setShowAdminDashboard(!showAdminDashboard));
+};
   console.log("events", events);
   return (
     <nav className="bg-white shadow-md z-20 px-4 py-3 flex items-center justify-between">
@@ -18,6 +24,15 @@ const TopBar = () => {
       </div>
 
       <div className="flex items-center gap-4">
+        {isAuthenticated && user?.is_admin && (
+          <button
+            onClick={handleAdminClick}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-gray-800 rounded-md hover:bg-gray-700 transition-colors"
+          >
+            <LayoutDashboard size={18} />
+            <span>{showAdminDashboard ? "Map" : "Admin"}</span>
+          </button>
+        )}
         {isAuthenticated ? (
           <UserProfile />
         ) : (

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel,field_validator
 from datetime import datetime
 
 from typing import List, Optional, Any
@@ -28,18 +28,35 @@ class LoginResponse(BaseModel):
 class CreateEvent(BaseModel):
     name: str
     description: str
-    location: List[float]
-    date: str
-    time: str
+    start_time: str
+    end_time: str
     category: str
-    status: Optional[str] = "active"
     spot_id: Optional[int] = None
-    duration_hours: Optional[int] = 24
+    custom_location: Optional[List[float]] = None
+
+    @field_validator('end_time')
+    @classmethod
+    def validate_end_time(cls, end_time: str, info) -> str:
+        """Validate that end_time is after start_time"""
+        if 'start_time' in info.data:
+            start = datetime.fromisoformat(info.data['start_time'])
+            end = datetime.fromisoformat(end_time)
+            if end <= start:
+                raise ValueError('end_time must be after start_time')
+        return end_time
 
 
-class Event(CreateEvent):
+class Event(BaseModel):
     id: int
+    name: str
+    description: str
+    location: Optional[List[float]]  # Always present in response
+    start_time: str
+    end_time: str
+    category: str
+    status: str
     spot_id: Optional[int] = None
+    owner_id: int
 
 
 class Report(BaseModel):
@@ -127,14 +144,23 @@ class UpdateSpot(BaseModel):
     permanence_reason: str | None = None
     expires_at: datetime | None = None
 
-
 class UpdateEvent(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     category: Optional[str] = None
-    date: Optional[str] = None
-    time: Optional[str] = None
-    # We generally don't allow moving an event between spots/owners after creation.
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+
+    @field_validator('end_time')
+    @classmethod
+    def validate_end_time(cls, end_time: Optional[str], info) -> Optional[str]:
+        """Validate that end_time is after start_time if both are provided"""
+        if end_time and 'start_time' in info.data and info.data['start_time']:
+            start = datetime.fromisoformat(info.data['start_time'])
+            end = datetime.fromisoformat(end_time)
+            if end <= start:
+                raise ValueError('end_time must be after start_time')
+        return end_time
 
 class UpdateReport(BaseModel):
     description: Optional[str] = None

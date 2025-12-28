@@ -10,10 +10,14 @@ import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "./state/store";
 import { Event } from "./generated-types";
 import { setSelectedSpot, setShowCreateSpot } from "./state/AppSlice";
+import AdminDashboard from "./components/AdminDashboard";
 
 const HotSpotter = () => {
   const showCreateSpot = useSelector(
     (state: RootState) => state.app.showCreateSpot
+  );
+  const showAdminDashboard = useSelector(
+    (state: RootState) => state.app.showAdminDashboard
   );
   const selectedSpot = useSelector(
     (state: RootState) => state.app.selectedSpot
@@ -74,6 +78,11 @@ const HotSpotter = () => {
     <div className="h-screen w-full flex flex-col bg-gray-50">
       <TopBar />
       <LoaderComponent />
+      {showAdminDashboard ? (
+        <div className="flex-1 overflow-auto z-10">
+          <AdminDashboard />
+        </div>
+      ) : (
       <div className="flex flex-1 overflow-hidden">
         <Sidebar categories={categories} spots={spots} />
         <MapView
@@ -83,6 +92,7 @@ const HotSpotter = () => {
         <SpotDetail recentReports={recentReports} />
         <CreateSpotModal />
       </div>
+    )}
     </div>
   );
 };
