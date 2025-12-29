@@ -11,6 +11,7 @@ import { RootState } from "./state/store";
 import { Event } from "./generated-types";
 import { setSelectedSpot, setShowCreateSpot } from "./state/AppSlice";
 import AdminDashboard from "./components/AdminDashboard";
+import UserProfilePage from "./components/UserProfilePage"
 
 const HotSpotter = () => {
   const showCreateSpot = useSelector(
@@ -18,6 +19,9 @@ const HotSpotter = () => {
   );
   const showAdminDashboard = useSelector(
     (state: RootState) => state.app.showAdminDashboard
+  );
+  const showUserProfile = useSelector(
+    (state: RootState) => state.app.showUserProfile
   );
   const selectedSpot = useSelector(
     (state: RootState) => state.app.selectedSpot
@@ -82,17 +86,21 @@ const HotSpotter = () => {
         <div className="flex-1 overflow-auto z-10">
           <AdminDashboard />
         </div>
+      ) : showUserProfile ? (
+        <div className="flex-1 overflow-auto z-10">
+          <UserProfilePage />
+        </div>
       ) : (
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar categories={categories} spots={spots} />
-        <MapView
-          onSelectSpot={setSelectedSpot}
-          onToggleCreate={onToggleCreate}
-        />
-        <SpotDetail recentReports={recentReports} />
-        <CreateSpotModal />
-      </div>
-    )}
+        <div className="flex flex-1 overflow-hidden">
+          <Sidebar categories={categories} spots={spots} />
+          <MapView
+            onSelectSpot={setSelectedSpot}
+            onToggleCreate={onToggleCreate}
+          />
+          <SpotDetail recentReports={recentReports} />
+          <CreateSpotModal />
+        </div>
+      )}
     </div>
   );
 };

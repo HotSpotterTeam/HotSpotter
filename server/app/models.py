@@ -62,6 +62,8 @@ class User(Base):
     events = relationship("Event", back_populates="organizer")
     reports = relationship("Report", back_populates="user")
     spots = relationship("Spot", back_populates="owner")
+    favorite_spots = relationship("SpotFavorite", back_populates="user", cascade="all, delete-orphan")
+    event_subscriptions = relationship("EventSubscription", back_populates="user", cascade="all, delete-orphan")
 
 
 class Spot(Base):
@@ -99,6 +101,7 @@ class Spot(Base):
     owner = relationship("User", back_populates="spots")
     events = relationship("Event", back_populates="spot")
     reports = relationship("Report", back_populates="spot")
+    favorited_by = relationship("SpotFavorite", back_populates="spot", cascade="all, delete-orphan")
 
     def to_api_model(self) -> dict:
         """Serialize the ORM model into a JSON-friendly dict."""
@@ -147,6 +150,7 @@ class Event(Base):
     organizer = relationship("User", back_populates="events")
     spot = relationship("Spot", back_populates="events")
     reports = relationship("Report", back_populates="event", cascade="all, delete-orphan")
+    subscribers = relationship("EventSubscription", back_populates="event", cascade="all, delete-orphan")
 
     def to_api_model(self) -> dict:
         """Serialize the ORM model into a JSON-friendly dict."""
@@ -202,3 +206,29 @@ class Report(Base):
             "status": self.status,
             "is_flagged": self.is_flagged
         }
+
+
+class SpotFavorite(Base):
+    """User's favorite spots."""
+    __tablename__ = "spot_favorites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    spot_id = Column(Integer, ForeignKey("spots.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=func.now())
+
+    user = relationship("User", back_populates="favorite_spots")
+    spot = relationship("Spot", back_populates="favorited_by")
+
+
+class EventSubscription(Base):
+    """User's event subscriptions."""
+    __tablename__ = "event_subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=func.now())
+
+    user = relationship("User", back_populates="event_subscriptions")
+    event = relationship("Event", back_populates="subscribers")

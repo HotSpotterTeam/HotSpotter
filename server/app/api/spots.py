@@ -14,7 +14,7 @@ router = APIRouter()
 async def list_spots(
     search: str | None = Query(None, description="Search text in spot name"),
     category: str | None = Query(None),
-    is_approved: bool = Query(True, description="Filter by approval status (default: True)"),
+    is_approved: bool | None = Query(None, description="Filter by approval status (default: None for all, True for approved only, False for non-approved only)"),
     owner_id: int | None = Query(None, description="Filter by spot creator"),
     sort_by: str | None = Query("creation", description="Options: 'creation', 'reports'"),
     # Radius Filter
@@ -48,7 +48,8 @@ async def list_spots(
             query = query.filter(or_(*conditions))
 
         # 1. Standard Filters
-        query = query.filter(Spot.is_approved == is_approved)
+        if is_approved is not None:
+            query = query.filter(Spot.is_approved == is_approved)
         
         if category:
             query = query.filter(Spot.category == category)
