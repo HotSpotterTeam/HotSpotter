@@ -17,6 +17,7 @@ export const appSlice = createSlice({
     createSpotLocation: null as Location | null,
     currentUserLocation: null as Location | null,
     showAdminDashboard: false as boolean,
+    showUserProfile: false as boolean,
     mapBounds: null as Bounds | null,
     mapZoom: 13 as number,
     shouldFetchSpots: true as boolean,
@@ -46,6 +47,9 @@ export const appSlice = createSlice({
     setShowAdminDashboard: (state, action) => {
       state.showAdminDashboard = action.payload as boolean;
     },
+    setShowUserProfile: (state, action) => {
+      state.showUserProfile = action.payload as boolean;
+    },
     setMapBounds: (state, action) => {
       state.mapBounds = action.payload as Bounds | null;
     },
@@ -67,6 +71,7 @@ export const {
   setCreateSpotLocation,
   setCurrentUserLocation,
   setShowAdminDashboard,
+  setShowUserProfile,
   setMapBounds,
   setMapZoom,
   setShouldFetchSpots,

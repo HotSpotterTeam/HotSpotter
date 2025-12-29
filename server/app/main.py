@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.hs_logging import middleware_http_request_logger
 
-from .api import auth, events, reports, admin, utils, spots
+from .api import auth, events, reports, admin, utils, spots,favorites
 
 app = FastAPI(title="HotSpotter API (TBD)")
 
@@ -23,6 +23,7 @@ app.include_router(reports.router, prefix="/api/reports", tags=["reports"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(utils.router, prefix="/api", tags=["utils"])
 app.include_router(spots.router, prefix="/api/spots", tags=["spots"])
+app.include_router(favorites.router, prefix="/api", tags=["favorites"])
 
 
 @app.get("/", tags=["root"])
