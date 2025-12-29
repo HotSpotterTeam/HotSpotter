@@ -63,8 +63,11 @@ export function useSpots() {
           max_lat: mapBounds.maxLat.toString(),
           min_lng: mapBounds.minLng.toString(),
           max_lng: mapBounds.maxLng.toString(),
+          is_approved: 'true', // Only show approved spots on the map
         });
         url += `?${params.toString()}`;
+      } else {
+        url += '?is_approved=true'; // Only show approved spots
       }
       
       const res = await fetch(url);

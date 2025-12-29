@@ -49,7 +49,12 @@ const UserProfilePage = () => {
     setLoading(true);
     try {
       const data: any = await authFetch(`/api/spots/?owner_id=${user.id}`);
-      setMySpots(data.spots || []);
+      const sortedSpots = (data.spots || []).sort((a: Spot, b: Spot) => {
+        // Non-approved spots (false) come before approved spots (true)
+        if (a.is_approved === b.is_approved) return 0;
+        return a.is_approved ? 1 : -1;
+      });
+      setMySpots(sortedSpots);
     } catch (err) {
       console.error("Failed to load spots:", err);
     } finally {
