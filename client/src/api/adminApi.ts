@@ -52,7 +52,8 @@ export const getSpots = async (token: string | null, search: string, filter: "al
   if (filter === "pending") url += `is_approved=false&`;
   
   const res: any = await authFetch(token, url);
-  return res.data as Spot[];
+  // API returns { spots: [...], total: ... }
+  return res.spots as Spot[];
 };
 
 export const deleteSpot = async (token: string | null, id: number) => {
