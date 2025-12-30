@@ -206,39 +206,46 @@ export default function MapView({
         )}
 
         {/* Show spots if we should fetch them */}
-        {fetchCheck.shouldFetch && spots?.map((spot) => {
-          const iconType = categoryIcons[spot.category] || categoryIcons.default;
-          const iconColor = categoryColors[spot.category] || categoryColors.default;
-          const markerIcon = createCustomIcon(iconType, iconColor);
-
-          return (
-            <Marker
-              key={`spot-${spot.id}`}
-              position={[spot.location[0], spot.location[1]]}
-              icon={markerIcon}
-              eventHandlers={{ click: () => onSelectSpot(spot) }}
-            >
-              <Popup>
-                <div>
-                  <strong>{spot.name}</strong>
-                  <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Spot</span>
-                  {spot.description && (
-                    <div className="text-sm text-gray-600">{spot.description}</div>
-                  )}
-                  <div className="text-xs text-gray-500 mt-1">
-                    {spot.category} • {spot.spot_type}
+        {/* Memoize spot icons by category */}
+        {(() => {
+          const spotIconCache: Record<string, L.DivIcon> = {};
+          return fetchCheck.shouldFetch && spots?.map((spot) => {
+            const cat = spot.category || 'default';
+            if (!spotIconCache[cat]) {
+              const iconType = categoryIcons[cat] || categoryIcons.default;
+              const iconColor = categoryColors[cat] || categoryColors.default;
+              spotIconCache[cat] = createCustomIcon(iconType, iconColor);
+            }
+            const markerIcon = spotIconCache[cat];
+            return (
+              <Marker
+                key={`spot-${spot.id}`}
+                position={[spot.location[0], spot.location[1]]}
+                icon={markerIcon}
+                eventHandlers={{ click: () => onSelectSpot(spot) }}
+              >
+                <Popup>
+                  <div>
+                    <strong>{spot.name}</strong>
+                    <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Spot</span>
+                    {spot.description && (
+                      <div className="text-sm text-gray-600">{spot.description}</div>
+                    )}
+                    <div className="text-xs text-gray-500 mt-1">
+                      {spot.category} • {spot.spot_type}
+                    </div>
                   </div>
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
+                </Popup>
+              </Marker>
+            );
+          });
+        })()}
 
         {/* Show events */}
-        {fetchCheck.shouldFetch && events?.map((event: any) => {
+        {/* Create eventIcon once for all event markers */}
+        {(() => {
           const eventIcon = createCustomIcon(categoryIcons.event, '', { isEvent: true });
-
-          return (
+          return fetchCheck.shouldFetch && events?.map((event: any) => (
             <Marker
               key={`event-${event.id}`}
               position={[event.location[0], event.location[1]]}
@@ -259,8 +266,8 @@ export default function MapView({
                 </div>
               </Popup>
             </Marker>
-          );
-        })}
+          ));
+        })()}
       </MapContainer>
 
       {/* Location button - always visible */}
