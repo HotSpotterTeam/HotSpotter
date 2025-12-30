@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Filter, Search as SearchIcon, X } from "lucide-react";
+import { Filter, Search as SearchIcon, X, Calendar } from "lucide-react";
 import { RootState } from "../state/store";
 import { useDispatch, useSelector } from "react-redux";
 import { setSelectedEvent } from "../state/AppSlice";
@@ -162,7 +162,11 @@ export default function Sidebar({
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-2xl">📅</span>
+                      <span className="flex items-center justify-center">
+                        <div className="sidebar-event-icon-box">
+                          <Calendar size={20} color='black' strokeWidth={2.5} />
+                        </div>
+                      </span>
                       <div>
                         <h3 className="font-semibold text-gray-800">
                           {event.name}
