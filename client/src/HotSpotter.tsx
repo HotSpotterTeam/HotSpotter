@@ -12,6 +12,7 @@ import { Event } from "./generated-types";
 import { setSelectedSpot, setSelectedEvent, setShowCreateSpot } from "./state/AppSlice";
 import AdminDashboard from "./components/AdminDashboard";
 import { useEvents } from "./queries";
+import UserProfilePage from "./components/UserProfilePage"
 
 const HotSpotter = () => {
   // Fetch events from API
@@ -22,6 +23,9 @@ const HotSpotter = () => {
   );
   const showAdminDashboard = useSelector(
     (state: RootState) => state.app.showAdminDashboard
+  );
+  const showUserProfile = useSelector(
+    (state: RootState) => state.app.showUserProfile
   );
   const selectedSpot = useSelector(
     (state: RootState) => state.app.selectedSpot
@@ -102,6 +106,10 @@ const HotSpotter = () => {
       {showAdminDashboard ? (
         <div className="flex-1 overflow-auto z-10">
           <AdminDashboard />
+        </div>
+      ) : showUserProfile ? (
+        <div className="flex-1 overflow-auto z-10">
+          <UserProfilePage />
         </div>
       ) : (
       <div className="flex flex-1 overflow-hidden">

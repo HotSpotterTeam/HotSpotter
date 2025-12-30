@@ -285,7 +285,7 @@ const AdminDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {users.map(u => (
+                {users?.map(u => (
                   <tr key={u.id} className="hover:bg-gray-50">
                     <td className="p-4 text-gray-500">#{u.id}</td>
                     <td className="p-4">
@@ -350,7 +350,7 @@ const AdminDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {spots.map(spot => (
+                {spots?.map(spot => (
                   <tr key={spot.id} className="hover:bg-gray-50">
                     <td className="p-4 text-gray-500 text-xs">#{spot.id}</td>
                     <td className="p-4 font-medium">{spot.name}</td>
@@ -418,7 +418,7 @@ const AdminDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {events.map(event => (
+                {events?.map(event => (
                   <tr key={event.id} className="hover:bg-gray-50">
                     <td className="p-4 text-gray-500 text-xs">#{event.id}</td>
                     <td className="p-4">
@@ -472,7 +472,7 @@ const AdminDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {reports.map(report => (
+                {reports?.map(report => (
                   <tr key={report.id} className="hover:bg-gray-50">
                     <td className="p-4 text-gray-500">#{report.id}</td>
                     <td className="p-4 text-red-600 font-medium">{report.description}</td>
