@@ -31,6 +31,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table('http-logs')
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    tables = inspector.get_table_names()
+    if 'http-logs' in tables:
+        op.drop_table('http-logs')
 
 

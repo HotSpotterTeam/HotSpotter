@@ -72,4 +72,5 @@ export interface Spot {
   category: string;
   is_approved: boolean;
   owner_id: number;
+  description?: string;
 }

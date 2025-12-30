@@ -39,14 +39,16 @@ def downgrade() -> None:
     # Drop the columns if they exist (safe rollback)
     conn = op.get_bind()
     inspector = sa.inspect(conn)
-    existing_cols = [c["name"] for c in inspector.get_columns("http-logs")]
+    tables = inspector.get_table_names()
+    if 'http-logs' in tables:
+        existing_cols = [c["name"] for c in inspector.get_columns("http-logs")]
 
-    if "response_status_code" in existing_cols:
-        op.drop_column("http-logs", "response_status_code")
+        if "response_status_code" in existing_cols:
+            op.drop_column("http-logs", "response_status_code")
 
-    if "response_data" in existing_cols:
-        op.drop_column("http-logs", "response_data")
+        if "response_data" in existing_cols:
+            op.drop_column("http-logs", "response_data")
 
-    if "end_time" in existing_cols:
-        op.drop_column("http-logs", "end_time")
+        if "end_time" in existing_cols:
+            op.drop_column("http-logs", "end_time")
 
