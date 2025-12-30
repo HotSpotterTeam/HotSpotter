@@ -33,3 +33,16 @@ button { font-family: inherit; }
 .leaflet-popup-pane {
   z-index: 0;
 }
+
+/* Sidebar event icon box style (matches map marker look) */
+.sidebar-event-icon-box {
+  background: white;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid black;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}

@@ -53,7 +53,7 @@ export const createCustomIcon = (
     let style: React.CSSProperties;
     let iconProps: any = { size: 14, color: 'white', strokeWidth: 2 };
     if (options?.isEvent) {
-        // Special style for event: white background, red border, bigger icon
+        // Special style for event
         style = {
             backgroundColor: 'white',
             borderRadius: '8px',
@@ -62,10 +62,10 @@ export const createCustomIcon = (
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '3px solid #F43F5E', // red border
+            border: '2px solid black',
             boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
         };
-        iconProps = { size: 20, color: '#F43F5E', strokeWidth: 2.5 };
+        iconProps = { size: 20, color: 'black', strokeWidth: 2.5 };
     } else {
         style = {
             backgroundColor: color,
