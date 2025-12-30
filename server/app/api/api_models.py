@@ -56,7 +56,7 @@ class Event(BaseModel):
     category: str
     status: str
     spot_id: Optional[int] = None
-    owner_id: int
+    owner_id: Optional[int] = None  # Optional to handle legacy data, but should always be set for new events
 
 
 class Report(BaseModel):

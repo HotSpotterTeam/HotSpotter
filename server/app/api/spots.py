@@ -53,8 +53,7 @@ async def list_spots(
         
         if category:
             query = query.filter(Spot.category == category)
-        if search:
-            query = query.filter(Spot.name.ilike(f"%{search}%"))
+        # Note: search filter is already applied above with OR logic (lines 38-48)
         if owner_id:
             query = query.filter(Spot.owner_id == owner_id)
 

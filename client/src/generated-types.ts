@@ -26,7 +26,7 @@ export interface Event {
   start_time: string;
   end_time: string;
   spot_id?: number;
-  owner_id: number;
+  owner_id?: number;
 }
 export interface EventResponse {
   status: string;

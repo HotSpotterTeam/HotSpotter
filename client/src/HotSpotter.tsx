@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import CreateSpotModal from "./components/CreateSpotModal";
-import SpotDetail from "./components/SpotDetail";
+import EventDetail from "./components/EventDetail";
 import Sidebar from "./components/Sidebar";
 import MapView from "./components/MapView";
 import TopBar from "./components/TopBar";
@@ -9,11 +9,19 @@ import LoaderComponent from "./components/Loader";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "./state/store";
 import { Event } from "./generated-types";
-import { setSelectedSpot, setShowCreateSpot } from "./state/AppSlice";
+import {
+  setSelectedSpot,
+  setSelectedEvent,
+  setShowCreateSpot,
+} from "./state/AppSlice";
 import AdminDashboard from "./components/AdminDashboard";
-import UserProfilePage from "./components/UserProfilePage"
+import { useEvents } from "./queries";
+import UserProfilePage from "./components/UserProfilePage";
 
 const HotSpotter = () => {
+  // Fetch events from API
+  const { isPending: eventsLoading, error: eventsError } = useEvents();
+
   const showCreateSpot = useSelector(
     (state: RootState) => state.app.showCreateSpot
   );
@@ -27,12 +35,7 @@ const HotSpotter = () => {
     (state: RootState) => state.app.selectedSpot
   );
   const dispatch = useDispatch();
-  const onSelectSpot = (spot: any) => {
-    dispatch(setSelectedSpot(spot as Event | null));
-  };
-  const onToggleCreate = () => {
-    dispatch(setShowCreateSpot(!showCreateSpot));
-  };
+
   const categories = [
     { id: "all", name: "All", icon: "🗺️", color: "bg-gray-500" },
     { id: "beach", name: "Beach", icon: "🏖️", color: "bg-blue-500" },
@@ -41,15 +44,21 @@ const HotSpotter = () => {
     { id: "traffic", name: "Traffic", icon: "🚗", color: "bg-red-500" },
   ];
 
-  const events = useSelector((state: RootState) => state.events.events);
-  const spots = (Array.isArray(events) ? events : []).map((event: Event) => ({
-    id: event.id,
-    title: event.name,
-    category: event.category,
-    description: event.description,
-    lat: event.location[0],
-    lng: event.location[1],
-  }));
+  const eventsFromStore = useSelector(
+    (state: RootState) => state.events.events
+  );
+  const eventsList = Array.isArray(eventsFromStore) ? eventsFromStore : [];
+
+  const onSelectEventFromMap = (spot: any) => {
+    // Find the corresponding event from the events list
+    const event = eventsList.find((e: Event) => e.id === spot.id);
+    if (event) {
+      dispatch(setSelectedEvent(event));
+    }
+  };
+  const onToggleCreate = () => {
+    dispatch(setShowCreateSpot(!showCreateSpot));
+  };
 
   const recentReports = [
     {
@@ -92,12 +101,17 @@ const HotSpotter = () => {
         </div>
       ) : (
         <div className="flex flex-1 overflow-hidden">
-          <Sidebar categories={categories} spots={spots} />
+          <Sidebar
+            categories={categories}
+            events={eventsList}
+            isLoading={eventsLoading}
+            error={eventsError}
+          />
           <MapView
-            onSelectSpot={setSelectedSpot}
+            onSelectSpot={onSelectEventFromMap}
             onToggleCreate={onToggleCreate}
           />
-          <SpotDetail recentReports={recentReports} />
+          <EventDetail recentReports={recentReports} />
           <CreateSpotModal />
         </div>
       )}

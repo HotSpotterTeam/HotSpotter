@@ -52,8 +52,7 @@ async def list_events(
             query = query.filter(Event.status == status)
         if category:
             query = query.filter(Event.category == category)
-        if search:
-            query = query.filter(Event.name.ilike(f"%{search}%"))
+        # Note: search filter is already applied above with OR logic (lines 37-48)
 
         # 2. Ownership Filters- for Pending Events logic
         if owner_id:

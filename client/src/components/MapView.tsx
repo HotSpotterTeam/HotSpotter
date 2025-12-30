@@ -7,7 +7,7 @@ import {
   useMap,
   Circle,
 } from "react-leaflet";
-import { Plus, AlertCircle } from "lucide-react";
+import { Plus, Navigation, AlertCircle } from "lucide-react";
 import { useAppSelector } from "../store/hooks";
 import { RootState } from "../state/store";
 import MapEvents from "./MapEvents";
@@ -73,6 +73,46 @@ function MapCursor({ cursor }: { cursor: string }) {
   return null;
 }
 
+function CenterMapOnEvent() {
+  const map = useMap();
+  const selectedEvent = useSelector(
+    (state: RootState) => state.app.selectedEvent
+  );
+
+  useEffect(() => {
+    if (selectedEvent && selectedEvent.location && selectedEvent.location.length >= 2) {
+      // Use the same format as in HotSpotter.tsx: location[0] = lat, location[1] = lng
+      const lat = selectedEvent.location[0];
+      const lng = selectedEvent.location[1];
+      // Center map on event location with a nice zoom level
+      map.setView([lat, lng], 15, {
+        animate: true,
+        duration: 0.5,
+      });
+    }
+  }, [selectedEvent, map]);
+
+  return null;
+}
+
+function CenterOnUserLocationHandler({ onMapReady }: { onMapReady: (map: any) => void }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    onMapReady(map);
+  }, [map, onMapReady]);
+
+  return null;
+}
+
+type Spot = {
+  id: number;
+  title: string;
+  description?: string;
+  lat: number;
+  lng: number;
+};
+
 export default function MapView({
   onSelectSpot,
   onToggleCreate,
@@ -81,6 +121,7 @@ export default function MapView({
   onToggleCreate: () => void;
 }) {
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapInstance, setMapInstance] = useState<any>(null);
   const { isAuthenticated } = useAppSelector((state) => state.auth);
   const onChooseLocation = useAppSelector(
     (state: RootState) => state.app.onChooseLocation
@@ -88,6 +129,26 @@ export default function MapView({
   const currentUserLocation = useAppSelector(
     (state: RootState) => state.app.currentUserLocation
   );
+
+  const handleCenterOnLocation = () => {
+    if (!mapInstance) return;
+    
+    if (currentUserLocation) {
+      mapInstance.setView([currentUserLocation.lat, currentUserLocation.lng], 16, {
+        animate: true,
+        duration: 0.5,
+      });
+    } else {
+      // If location is not available, request it
+      mapInstance.locate({
+        enableHighAccuracy: true,
+        watch: false,
+        timeout: 10000,
+        maximumAge: 0,
+      });
+    }
+  };
+
   
   // Get events from Redux
   const events = useSelector((state: RootState) => state.events.events);
@@ -128,6 +189,8 @@ export default function MapView({
 
         <InvalidateMapSize onLoaded={(v) => setMapLoaded(v)} />
         <MapCursor cursor={onChooseLocation ? "crosshair" : "pointer"} />
+        <CenterMapOnEvent />
+        <CenterOnUserLocationHandler onMapReady={setMapInstance} />
         <MapEvents />
         {currentUserLocation && (
           <Circle
@@ -188,7 +251,16 @@ export default function MapView({
         ))}
       </MapContainer>
 
-      {/* Only show button if user is authenticated */}
+      {/* Location button - always visible */}
+      <button
+        onClick={handleCenterOnLocation}
+        className="absolute bottom-8 right-28 bg-green-600 text-white p-4 rounded-full shadow-xl hover:bg-green-700 transition-all hover:scale-110 z-40"
+        title="Center on my location"
+      >
+        <Navigation size={24} />
+      </button>
+
+      {/* Only show create button if user is authenticated */}
       {isAuthenticated && (
         <button
           onClick={onToggleCreate}
