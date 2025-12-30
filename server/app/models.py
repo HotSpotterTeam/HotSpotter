@@ -157,7 +157,7 @@ class Event(Base):
         coords = None
         if self.location is not None:
             shape = to_shape(self.location)
-            coords = [shape.x, shape.y]
+            coords = [shape.y, shape.x]
 
         return {
             "id": self.id,
