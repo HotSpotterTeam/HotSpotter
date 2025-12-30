@@ -13,6 +13,7 @@ import { RootState } from "../state/store";
 import MapEvents from "./MapEvents";
 import { useSpots } from "../queries";
 import { TEL_AVIV_DEFAULT } from "../constants";
+import { categoryIcons, categoryColors, createCustomIcon } from "../icons";
 import { useSelector } from "react-redux";
 import L from "leaflet";
 
@@ -85,7 +86,7 @@ function CenterMapOnEvent() {
       const lat = selectedEvent.location[0];
       const lng = selectedEvent.location[1];
       // Center map on event location with a nice zoom level
-      map.setView([lat, lng], 15, {
+      map.setView([lat, lng], 18, {
         animate: true,
         duration: 0.5,
       });
@@ -183,8 +184,8 @@ export default function MapView({
         className="w-full h-full z-0"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>'
+          url="https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png"
         />
 
         <InvalidateMapSize onLoaded={(v) => setMapLoaded(v)} />
@@ -205,50 +206,61 @@ export default function MapView({
         )}
 
         {/* Show spots if we should fetch them */}
-        {fetchCheck.shouldFetch && spots?.map((spot) => (
-          <Marker
-            key={`spot-${spot.id}`}
-            position={[spot.location[0], spot.location[1]]}
-            icon={spotIcon}
-            eventHandlers={{ click: () => onSelectSpot(spot) }}
-          >
-            <Popup>
-              <div>
-                <strong>{spot.name}</strong>
-                <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Spot</span>
-                {spot.description && (
-                  <div className="text-sm text-gray-600">{spot.description}</div>
-                )}
-                <div className="text-xs text-gray-500 mt-1">
-                  {spot.category} • {spot.spot_type}
+        {fetchCheck.shouldFetch && spots?.map((spot) => {
+          const iconType = categoryIcons[spot.category] || categoryIcons.default;
+          const iconColor = categoryColors[spot.category] || categoryColors.default;
+          const markerIcon = createCustomIcon(iconType, iconColor);
+
+          return (
+            <Marker
+              key={`spot-${spot.id}`}
+              position={[spot.location[0], spot.location[1]]}
+              icon={markerIcon}
+              eventHandlers={{ click: () => onSelectSpot(spot) }}
+            >
+              <Popup>
+                <div>
+                  <strong>{spot.name}</strong>
+                  <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Spot</span>
+                  {spot.description && (
+                    <div className="text-sm text-gray-600">{spot.description}</div>
+                  )}
+                  <div className="text-xs text-gray-500 mt-1">
+                    {spot.category} • {spot.spot_type}
+                  </div>
                 </div>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-        
+              </Popup>
+            </Marker>
+          );
+        })}
+
         {/* Show events */}
-        {fetchCheck.shouldFetch && events?.map((event: any) => (
-          <Marker
-            key={`event-${event.id}`}
-            position={[event.location[0], event.location[1]]}
-            icon={eventIcon}
-            eventHandlers={{ click: () => onSelectSpot(event) }}
-          >
-            <Popup>
-              <div>
-                <strong>{event.name}</strong>
-                <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Event</span>
-                {event.description && (
-                  <div className="text-sm text-gray-600">{event.description}</div>
-                )}
-                <div className="text-xs text-gray-500 mt-1">
-                  {event.category} • {event.date}
+        {fetchCheck.shouldFetch && events?.map((event: any) => {
+          const eventIcon = createCustomIcon(categoryIcons.event, '', { isEvent: true });
+
+          return (
+            <Marker
+              key={`event-${event.id}`}
+              position={[event.location[0], event.location[1]]}
+              icon={eventIcon}
+              zIndexOffset={1000}
+              eventHandlers={{ click: () => onSelectSpot(event) }}
+            >
+              <Popup>
+                <div>
+                  <strong>{event.name}</strong>
+                  <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Event</span>
+                  {event.description && (
+                    <div className="text-sm text-gray-600">{event.description}</div>
+                  )}
+                  <div className="text-xs text-gray-500 mt-1">
+                    {event.category} • {event.date}
+                  </div>
                 </div>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
 
       {/* Location button - always visible */}
