@@ -9,7 +9,8 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  X
+  X,
+  Search
 } from "lucide-react";
 import { useAppSelector } from "../store/hooks";
 import { Event, Spot, Report } from "../generated-types";
@@ -22,12 +23,17 @@ const UserProfilePage = () => {
   const { token, user } = useAppSelector((state) => state.auth);
   const [activeTab, setActiveTab] = useState<TabType>("spots");
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [mySpots, setMySpots] = useState<Spot[]>([]);
   const [myEvents, setMyEvents] = useState<Event[]>([]);
   const [myReports, setMyReports] = useState<Report[]>([]);
   const [favoriteSpots, setFavoriteSpots] = useState<Spot[]>([]);
   const [subscribedEvents, setSubscribedEvents] = useState<Event[]>([]);
+
+  const [spotNames, setSpotNames] = useState<Record<number, string>>({});
+  const [eventNames, setEventNames] = useState<Record<number, string>>({});
 
   const authFetch = async <T,>(endpoint: string, options: RequestInit = {}): Promise<T> => {
     const headers = {
@@ -44,84 +50,208 @@ const UserProfilePage = () => {
     return res.json();
   };
 
+  const fetchSpotName = async (spotId: number) => {
+    if (spotNames[spotId]) return;
+
+    console.log(`Fetching spot name for ID: ${spotId}`);
+    console.log(`API URL: ${API_URL}/api/spots/${spotId}`);
+    console.log(`Token exists: ${!!token}`);
+
+    try {
+      const data: any = await authFetch(`/api/spots/${spotId}`);
+      console.log(`Spot ${spotId} full response:`, data);
+      console.log(`Response type:`, typeof data);
+      console.log(`Response has name?:`, 'name' in data);
+      console.log(`Response.data exists?:`, 'data' in data);
+
+      // Check both possible response formats
+      let spotName = null;
+
+      // Format 1: Direct spot object (what response_model=SpotResponse should return)
+      if (data && data.name) {
+        spotName = data.name;
+        console.log(`Found name in direct format: ${spotName}`);
+      }
+      // Format 2: Wrapped in {status, data} (in case backend changed)
+      else if (data && data.data && data.data.name) {
+        spotName = data.data.name;
+        console.log(`Found name in wrapped format: ${spotName}`);
+      }
+
+      if (spotName) {
+        setSpotNames(prev => ({ ...prev, [spotId]: spotName }));
+        console.log(`Successfully set spot name: ${spotName}`);
+      } else {
+        console.error(`Could not find name in response for spot ${spotId}`);
+        setSpotNames(prev => ({ ...prev, [spotId]: `Spot #${spotId}` }));
+      }
+    } catch (err) {
+      console.error(`Error fetching spot ${spotId}:`, err);
+      // Set a fallback so it doesn't keep loading
+      setSpotNames(prev => ({ ...prev, [spotId]: `Spot #${spotId}` }));
+    }
+  };
+
+  const fetchEventName = async (eventId: number) => {
+    if (eventNames[eventId]) return;
+    try {
+      const data: any = await authFetch(`/api/events/${eventId}`);
+      console.log(`Event ${eventId} response:`, data);
+
+      // Events endpoint returns EventResponse with {status, data} wrapper
+      if (data && data.data && data.data.name) {
+        setEventNames(prev => ({ ...prev, [eventId]: data.data.name }));
+      }
+    } catch (err) {
+      console.error(`Failed to load event name for ${eventId}:`, err);
+      // Set a fallback so it doesn't keep loading
+      setEventNames(prev => ({ ...prev, [eventId]: `Event #${eventId}` }));
+    }
+  };
+
   const loadMySpots = async () => {
     if (!user) return;
-    setLoading(true);
     try {
       const data: any = await authFetch(`/api/spots/?owner_id=${user.id}`);
       const sortedSpots = (data.spots || []).sort((a: Spot, b: Spot) => {
-        // Non-approved spots (false) come before approved spots (true)
         if (a.is_approved === b.is_approved) return 0;
         return a.is_approved ? 1 : -1;
       });
       setMySpots(sortedSpots);
     } catch (err) {
       console.error("Failed to load spots:", err);
-    } finally {
-      setLoading(false);
     }
   };
 
   const loadMyEvents = async () => {
     if (!user) return;
-    setLoading(true);
     try {
       const data: any = await authFetch(`/api/events/?owner_id=${user.id}&status=all`);
-      setMyEvents(data.data || []);
+      const events = data.data || [];
+      setMyEvents(events);
+
+      const spotIds = events
+        .filter((event: Event) => event.spot_id)
+        .map((event: Event) => event.spot_id as number);
+
+      const uniqueSpotIds = [...new Set(spotIds)];
+
+      await Promise.all(
+        uniqueSpotIds.map(async (spotId) => {
+          if (!spotNames[spotId]) {
+            await fetchSpotName(spotId);
+          }
+        })
+      );
     } catch (err) {
       console.error("Failed to load events:", err);
-    } finally {
-      setLoading(false);
     }
   };
 
   const loadMyReports = async () => {
     if (!user) return;
-    setLoading(true);
     try {
       const data: any = await authFetch(`/api/reports/`);
       const userReports = (data.data || []).filter((r: Report) => r.user_id === user.id);
       setMyReports(userReports);
+
+      const spotIds = userReports
+        .filter((report: Report) => report.spot_id)
+        .map((report: Report) => report.spot_id as number);
+      const eventIds = userReports
+        .filter((report: Report) => report.event_id)
+        .map((report: Report) => report.event_id as number);
+
+      const uniqueSpotIds = [...new Set(spotIds)];
+      const uniqueEventIds = [...new Set(eventIds)];
+
+      await Promise.all([
+        ...uniqueSpotIds.map(async (spotId) => {
+          if (!spotNames[spotId]) {
+            await fetchSpotName(spotId);
+          }
+        }),
+        ...uniqueEventIds.map(async (eventId) => {
+          if (!eventNames[eventId]) {
+            await fetchEventName(eventId);
+          }
+        })
+      ]);
     } catch (err) {
       console.error("Failed to load reports:", err);
-    } finally {
-      setLoading(false);
     }
   };
 
   const loadFavoriteSpots = async () => {
     if (!user) return;
-    setLoading(true);
     try {
       const data: any = await authFetch(`/api/favorites/spots`);
       setFavoriteSpots(data.data || []);
     } catch (err) {
       console.error("Failed to load favorite spots:", err);
-    } finally {
-      setLoading(false);
     }
   };
 
   const loadSubscribedEvents = async () => {
     if (!user) return;
-    setLoading(true);
     try {
       const data: any = await authFetch(`/api/subscriptions/events`);
-      setSubscribedEvents(data.data || []);
+      const events = data.data || [];
+      setSubscribedEvents(events);
+
+      const spotIds = events
+        .filter((event: Event) => event.spot_id)
+        .map((event: Event) => event.spot_id as number);
+
+      const uniqueSpotIds = [...new Set(spotIds)];
+
+      await Promise.all(
+        uniqueSpotIds.map(async (spotId) => {
+          if (!spotNames[spotId]) {
+            await fetchSpotName(spotId);
+          }
+        })
+      );
     } catch (err) {
       console.error("Failed to load subscribed events:", err);
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (activeTab === "spots") loadMySpots();
-    if (activeTab === "events") loadMyEvents();
-    if (activeTab === "reports") loadMyReports();
-    if (activeTab === "favorites") loadFavoriteSpots();
-    if (activeTab === "subscriptions") loadSubscribedEvents();
-  }, [activeTab, user]);
+    if (!user) return;
+
+    // Load all data when component mounts
+    const loadAllData = async () => {
+      setInitialLoading(true);
+      await Promise.all([
+        loadMySpots(),
+        loadMyEvents(),
+        loadMyReports(),
+        loadFavoriteSpots(),
+        loadSubscribedEvents()
+      ]);
+      setInitialLoading(false);
+    };
+
+    loadAllData();
+  }, [user]);
+
+  // Clear search when switching tabs
+  useEffect(() => {
+    setSearchTerm("");
+  }, [activeTab]);
+
+  const filterItems = <T extends Spot | Event | Report>(items: T[]): T[] => {
+    if (!searchTerm.trim()) return items;
+
+    const term = searchTerm.toLowerCase();
+    return items.filter((item) => {
+      if ('name' in item && item.name?.toLowerCase().includes(term)) return true;
+      if ('description' in item && item.description?.toLowerCase().includes(term)) return true;
+      if ('category' in item && item.category?.toLowerCase().includes(term)) return true;
+      return false;
+    });
+  };
 
   const handleDeleteSpot = async (id: number) => {
     if (!window.confirm("Delete this spot permanently?")) return;
@@ -202,6 +332,12 @@ const UserProfilePage = () => {
     );
   }
 
+  const filteredSpots = filterItems(mySpots);
+  const filteredEvents = filterItems(myEvents);
+  const filteredReports = filterItems(myReports);
+  const filteredFavorites = filterItems(favoriteSpots);
+  const filteredSubscriptions = filterItems(subscribedEvents);
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="bg-white shadow-sm border-b">
@@ -240,21 +376,47 @@ const UserProfilePage = () => {
       </div>
 
       <div className="flex-1 p-8 max-w-6xl mx-auto w-full">
-        {loading && (
-          <div className="flex justify-center py-8">
-            <div className="w-8 h-8 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div>
+        {initialLoading && (
+          <div className="fixed inset-0 bg-gray-50 bg-opacity-90 flex items-center justify-center z-50">
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-full border-4 border-blue-600 border-t-transparent animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-700 font-medium">Loading your profile...</p>
+            </div>
           </div>
         )}
 
-        {activeTab === "spots" && !loading && (
+        <div className="mb-4">
+          <div className="relative">
+            <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {activeTab === "spots" && (
           <div className="space-y-4">
-            {mySpots.length === 0 ? (
+            {filteredSpots.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
                 <MapPin size={48} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-500">You haven't created any spots yet</p>
+                <p className="text-gray-500">
+                  {searchTerm ? "No spots match your search" : "You haven't created any spots yet"}
+                </p>
               </div>
             ) : (
-              mySpots.map(spot => (
+              filteredSpots.map(spot => (
                 <div key={spot.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -298,15 +460,17 @@ const UserProfilePage = () => {
           </div>
         )}
 
-        {activeTab === "events" && !loading && (
+        {activeTab === "events" && (
           <div className="space-y-4">
-            {myEvents.length === 0 ? (
+            {filteredEvents.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
                 <Calendar size={48} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-500">You haven't created any events yet</p>
+                <p className="text-gray-500">
+                  {searchTerm ? "No events match your search" : "You haven't created any events yet"}
+                </p>
               </div>
             ) : (
-              myEvents.map(event => (
+              filteredEvents.map(event => (
                 <div key={event.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -347,7 +511,14 @@ const UserProfilePage = () => {
                         </span>
                         {event.spot_id && (
                           <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">
-                            At Spot #{event.spot_id}
+                            {spotNames[event.spot_id] ? (
+                              `At Spot: ${spotNames[event.spot_id]}`
+                            ) : (
+                              <span className="flex items-center gap-1">
+                                <span className="inline-block w-2 h-2 border-2 border-blue-700 border-t-transparent rounded-full animate-spin"></span>
+                                Loading spot...
+                              </span>
+                            )}
                           </span>
                         )}
                         <span>ID: #{event.id}</span>
@@ -369,15 +540,17 @@ const UserProfilePage = () => {
           </div>
         )}
 
-        {activeTab === "reports" && !loading && (
+        {activeTab === "reports" && (
           <div className="space-y-4">
-            {myReports.length === 0 ? (
+            {filteredReports.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
                 <Flag size={48} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-500">You haven't submitted any reports yet</p>
+                <p className="text-gray-500">
+                  {searchTerm ? "No reports match your search" : "You haven't submitted any reports yet"}
+                </p>
               </div>
             ) : (
-              myReports.map(report => (
+              filteredReports.map(report => (
                 <div key={report.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -399,11 +572,25 @@ const UserProfilePage = () => {
                       <div className="flex items-center gap-4 text-xs text-gray-500">
                         {report.spot_id ? (
                           <span className="bg-orange-50 text-orange-700 px-2 py-1 rounded">
-                            On Spot #{report.spot_id}
+                            {spotNames[report.spot_id] ? (
+                              `On Spot: ${spotNames[report.spot_id]}`
+                            ) : (
+                              <span className="flex items-center gap-1">
+                                <span className="inline-block w-2 h-2 border-2 border-orange-700 border-t-transparent rounded-full animate-spin"></span>
+                                Loading spot...
+                              </span>
+                            )}
                           </span>
                         ) : report.event_id ? (
                           <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">
-                            On Event #{report.event_id}
+                            {eventNames[report.event_id] ? (
+                              `On Event: ${eventNames[report.event_id]}`
+                            ) : (
+                              <span className="flex items-center gap-1">
+                                <span className="inline-block w-2 h-2 border-2 border-blue-700 border-t-transparent rounded-full animate-spin"></span>
+                                Loading event...
+                              </span>
+                            )}
                           </span>
                         ) : null}
                         <span>
@@ -429,15 +616,17 @@ const UserProfilePage = () => {
           </div>
         )}
 
-        {activeTab === "favorites" && !loading && (
+        {activeTab === "favorites" && (
           <div className="space-y-4">
-            {favoriteSpots.length === 0 ? (
+            {filteredFavorites.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
                 <MapPin size={48} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-500">You haven't saved any spots yet</p>
+                <p className="text-gray-500">
+                  {searchTerm ? "No favorite spots match your search" : "You haven't saved any spots yet"}
+                </p>
               </div>
             ) : (
-              favoriteSpots.map(spot => (
+              filteredFavorites.map(spot => (
                 <div key={spot.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -476,15 +665,17 @@ const UserProfilePage = () => {
           </div>
         )}
 
-        {activeTab === "subscriptions" && !loading && (
+        {activeTab === "subscriptions" && (
           <div className="space-y-4">
-            {subscribedEvents.length === 0 ? (
+            {filteredSubscriptions.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
                 <Calendar size={48} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-500">You haven't joined any events yet</p>
+                <p className="text-gray-500">
+                  {searchTerm ? "No joined events match your search" : "You haven't joined any events yet"}
+                </p>
               </div>
             ) : (
-              subscribedEvents.map(event => (
+              filteredSubscriptions.map(event => (
                 <div key={event.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -516,7 +707,14 @@ const UserProfilePage = () => {
                         </span>
                         {event.spot_id && (
                           <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">
-                            At Spot #{event.spot_id}
+                            {spotNames[event.spot_id] ? (
+                              `At Spot: ${spotNames[event.spot_id]}`
+                            ) : (
+                              <span className="flex items-center gap-1">
+                                <span className="inline-block w-2 h-2 border-2 border-blue-700 border-t-transparent rounded-full animate-spin"></span>
+                                Loading spot...
+                              </span>
+                            )}
                           </span>
                         )}
                         <span>ID: #{event.id}</span>
