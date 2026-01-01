@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setSelectedEvent } from "../state/AppSlice";
 import { Event } from "../generated-types";
 import * as EventsApi from "../api/eventsApi"; // Import the new API file
+import { useAppSelector } from "../store/hooks";
 
 export default function Sidebar({
   categories,
