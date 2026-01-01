@@ -1,6 +1,6 @@
 """add score to reports
 
-Revision ID: add_score_to_reports
+Revision ID: c9d4e8f2a7b3
 Revises: b8f3da3500e6
 Create Date: 2026-01-01 12:00:00.000000
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'add_score_to_reports'
+revision = 'c9d4e8f2a7b3'
 down_revision = 'b8f3da3500e6'
 branch_labels = None
 depends_on = None
