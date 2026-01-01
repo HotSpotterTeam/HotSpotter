@@ -45,7 +45,8 @@ async def create_report(
             date=datetime.now(),
             time=datetime.now().time(),
             status="active",
-            is_flagged=False
+            is_flagged=False,
+            score=report_data.score
         )
         
         session.add(new_report)

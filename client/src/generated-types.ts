@@ -41,12 +41,15 @@ export interface Report {
   event_id?: number;
   spot_id?: number;
   user_id: number;
+  user_name: string;
   description: string;
   date: string;
   time: string;
   category: string;
   status: string;
   is_flagged: boolean;
+  score?: number;
+  picture?: string;
 }
 export interface ReportResponse {
   status: string;
