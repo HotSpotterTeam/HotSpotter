@@ -7,6 +7,8 @@ from app.api.auth_utils import get_current_user
 from geoalchemy2 import WKTElement
 from datetime import date, datetime, time, timedelta
 
+from app.hs_logging import log_user_action, get_request_session_id
+
 router = APIRouter()
 
 
@@ -98,7 +100,8 @@ async def get_event(id: int = Path(...)) -> EventResponse:
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_event(
         event_data: CreateEvent,
-        current_user: User = Depends(get_current_user)
+        current_user: User = Depends(get_current_user),
+        request_session_id=Depends(get_request_session_id)
 ) -> EventResponse:
     """
     Create new event.
@@ -183,6 +186,7 @@ async def create_event(
         session.add(event_model)
         session.commit()
         session.refresh(event_model)
+        log_user_action("create_event", current_user, data=event_model.to_api_model(),  request_session_id=request_session_id)
         return EventResponse(status="success", data=event_model.to_api_model())
 
 

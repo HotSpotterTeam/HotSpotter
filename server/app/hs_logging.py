@@ -1,4 +1,4 @@
-from fastapi import Request, Response
+from fastapi import Request, Response, Depends
 import logging
 import json
 from datetime import datetime, timezone
@@ -6,7 +6,7 @@ import uuid
 import asyncio
 import re
 from app.db import get_session
-from app.models import Http_Log
+from app.models import Http_Log, User_Action_Log
 from starlette.requests import Request as StarletteRequest
 
 
@@ -131,4 +131,22 @@ def write_response_to_db(status_code, response_body, request_session_id, respons
             log_record.response_data = response_body
             log_record.end_time = response_time
             session.commit()
+
+def log_user_action(action, user, data, request_session_id): 
+    """Logs a user action to the database ."""
+
+    
+    log_entry = User_Action_Log(
+        user_name=user.username if user else None,
+        user_id=user.id if user else None,
+        request_session_id = request_session_id,
+        user_role="admin" if user.is_admin else "user",
+        timestamp=datetime.now(timezone.utc).replace(microsecond=0).replace(tzinfo=None),
+        action=action,
+        data=json.dumps(data)
+    )
+
+    with get_session() as session:
+        session.add(log_entry)
+        session.commit()
 
