@@ -5,7 +5,7 @@ from sqlalchemy.engine import Inspector
 """added user_action_logs table"""
 
 revision = 'b8f3da3500e6'
-down_revision = '7376b638cfeb'
+down_revision = '22f4d5966a38'
 branch_labels = None
 depends_on = None
 
