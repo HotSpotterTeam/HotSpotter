@@ -12,6 +12,33 @@ class Base(DeclarativeBase):
 
     metadata = MetaData()
 
+
+class User_Action_Log(Base):
+    """User Action Log model."""
+
+    __tablename__ = "user-action-logs"
+    id = Column(Integer, primary_key=True)
+    user_name = Column(String, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user_role = Column(String, nullable=True)
+    timestamp = Column(DateTime, nullable=True)
+    request_session_id = Column(String, nullable=True)
+    action = Column(String, nullable=False)
+    data = Column(String, nullable=True)
+
+    def to_api_model(self) -> dict:
+        """Serialize the ORM model into a JSON-friendly dict."""
+        return {
+            "id": self.id,
+            "user_name": self.user_name,
+            "user_id": self.user_id,
+            "user_role": self.user_role,
+            "timestamp": self.timestamp,
+            "request_session_id": self.request_session_id,
+            "action": self.action,
+            "data": self.data
+        }
+
 class Http_Log(Base):
     """HTTP Log model."""
 
