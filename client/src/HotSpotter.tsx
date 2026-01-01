@@ -61,33 +61,6 @@ const HotSpotter = () => {
     dispatch(setShowCreateSpot(!showCreateSpot));
   };
 
-  const recentReports = [
-    {
-      id: 1,
-      user: "Sarah M.",
-      time: "2m ago",
-      content: "Lots of free spots on level 3!",
-      image: true,
-      upvotes: 5,
-    },
-    {
-      id: 2,
-      user: "David K.",
-      time: "5m ago",
-      content: "Waves are perfect today, not too crowded",
-      image: false,
-      upvotes: 8,
-    },
-    {
-      id: 3,
-      user: "Rachel L.",
-      time: "8m ago",
-      content: "Field is occupied until 6 PM",
-      image: true,
-      upvotes: 3,
-    },
-  ];
-
   return (
     <div className="h-screen w-full flex flex-col bg-gray-50">
       <TopBar />
@@ -111,7 +84,7 @@ const HotSpotter = () => {
           <MapView
             onSelectSpot={onSelectEventFromMap}
           />
-          <EventDetail recentReports={recentReports} />
+          <EventDetail />
           <CreateSpotModal />
           <CreateEventModal />
         </div>

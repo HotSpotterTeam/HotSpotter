@@ -85,5 +85,5 @@ export const getReports = async (token: string | null) => {
 };
 
 export const dismissReport = async (token: string | null, id: number) => {
-  return authFetch(token, `/api/reports/${id}/unflag`, { method: "PUT" });
+  return authFetch(token, `/api/reports/${id}/flag`, { method: "DELETE" });
 };

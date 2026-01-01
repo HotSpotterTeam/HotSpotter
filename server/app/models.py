@@ -214,6 +214,7 @@ class Report(Base):
     time = Column(Time)
     status = Column(String)
     is_flagged = Column(Boolean, default=False)
+    score = Column(Integer, nullable=True)  # Rating/score (1-5 stars, wave level, crowdedness, etc.)
     
     # Relationships
     event = relationship("Event", back_populates="reports")
@@ -221,17 +222,20 @@ class Report(Base):
     user = relationship("User", back_populates="reports")
 
     def to_api_model(self) -> dict:
+        user_name = self.user.name if self.user and self.user.name else (self.user.email if self.user else "Anonymous")
         return {
             "id": self.id,
             "event_id": self.event_id if self.event_id else 0, 
             "spot_id": self.spot_id if self.spot_id else 0,
             "user_id": self.user_id,
+            "user_name": user_name,
             "description": self.description,
             "picture": self.picture,
             "date": self.date.isoformat() if self.date else None,
             "time": self.time.isoformat() if self.time else None,
             "status": self.status,
-            "is_flagged": self.is_flagged
+            "is_flagged": self.is_flagged,
+            "score": self.score
         }
 
 

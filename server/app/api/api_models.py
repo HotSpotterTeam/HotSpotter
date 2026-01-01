@@ -64,18 +64,21 @@ class Report(BaseModel):
     event_id: int
     spot_id: int
     user_id: int
+    user_name: str
     description: str
     picture: Optional[str] = None
     date: str
     time: str
     status: str
     is_flagged: bool
+    score: Optional[int] = None
 
 class CreateReport(BaseModel):
     description: str
     picture: Optional[str] = None
     event_id: Optional[int] = None
     spot_id: Optional[int] = None
+    score: Optional[int] = None
 
 class EventsResponse(BaseModel):
     status: str
