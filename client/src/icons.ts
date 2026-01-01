@@ -90,7 +90,7 @@ export const createCustomIcon = (
         html: iconHtml,
         className: options?.isEvent ? 'custom-marker-icon event-marker' : 'custom-marker-icon',
         iconSize: options?.isEvent ? [48, 48] : [40, 40],
-        iconAnchor: options?.isEvent ? [24, 48] : [20, 40],
+        iconAnchor: options?.isEvent ? [6, 65] : [20, 40],
         popupAnchor: [0, -40]
     });
 };
