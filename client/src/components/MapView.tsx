@@ -7,7 +7,7 @@ import {
   useMap,
   Circle,
 } from "react-leaflet";
-import { Plus, Navigation, AlertCircle } from "lucide-react";
+import { Navigation, AlertCircle } from "lucide-react";
 import { useAppSelector } from "../store/hooks";
 import { RootState } from "../state/store";
 import MapEvents from "./MapEvents";
@@ -116,10 +116,8 @@ type Spot = {
 
 export default function MapView({
   onSelectSpot,
-  onToggleCreate,
 }: {
-  onSelectSpot: (s: any) => void;
-  onToggleCreate: () => void;
+  onSelectSpot: (event: any) => void;
 }) {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapInstance, setMapInstance] = useState<any>(null);
@@ -271,23 +269,17 @@ export default function MapView({
       </MapContainer>
 
       {/* Location button - always visible */}
-      <button
-        onClick={handleCenterOnLocation}
-        className="absolute bottom-8 right-28 bg-green-600 text-white p-4 rounded-full shadow-xl hover:bg-green-700 transition-all hover:scale-110 z-40"
-        title="Center on my location"
-      >
-        <Navigation size={24} />
-      </button>
-
-      {/* Only show create button if user is authenticated */}
-      {isAuthenticated && (
+      <div className="absolute bottom-8 right-8 z-40 group">
         <button
-          onClick={onToggleCreate}
-          className="absolute bottom-8 right-8 bg-blue-600 text-white p-4 rounded-full shadow-xl hover:bg-blue-700 transition-all hover:scale-110 z-40"
+          onClick={handleCenterOnLocation}
+          className="bg-white text-gray-700 border-2 border-gray-300 p-4 rounded-full shadow-md hover:border-gray-400 hover:shadow-lg transition-all"
         >
-          <Plus size={24} />
+          <Navigation size={24} />
         </button>
-      )}
+        <div className="absolute bottom-full right-0 mb-2 px-2.5 py-1.5 bg-gray-900/90 backdrop-blur-sm text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+          My location
+        </div>
+      </div>
 
       {/* Loading states */}
       {!mapLoaded && (

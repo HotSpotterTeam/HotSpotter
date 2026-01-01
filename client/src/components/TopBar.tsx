@@ -5,7 +5,7 @@ import { RootState } from "../state/store";
 import { useAppSelector } from "../store/hooks";
 import GoogleSignInButton from "./GoogleSignInButton";
 import UserProfile from "./UserProfile";
-import { setShowAdminDashboard, setShowUserProfile } from "../state/AppSlice";
+import { setShowAdminDashboard, setShowUserProfile, setShowCreateEvent, setShowCreateSpot } from "../state/AppSlice";
 
 const TopBar = () => {
   const events = useSelector((state: RootState) => state.events.events);
@@ -38,13 +38,30 @@ const TopBar = () => {
         <h1 className="text-2xl font-bold text-gray-800">HotSpotter</h1>
       </div>
 
+      {isAuthenticated && (
+        <div className="absolute left-80 ml-4 flex items-center gap-3">
+          <button
+            onClick={() => dispatch(setShowCreateEvent(true))}
+            className="bg-white text-gray-700 border-2 border-gray-300 px-5 py-2.5 rounded-lg hover:border-gray-400 hover:shadow-md transition-all font-medium text-sm"
+          >
+            Create Event
+          </button>
+          <button
+            onClick={() => dispatch(setShowCreateSpot(true))}
+            className="bg-white text-gray-700 border-2 border-gray-300 px-5 py-2.5 rounded-lg hover:border-gray-400 hover:shadow-md transition-all font-medium text-sm"
+          >
+            Create Spot
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center gap-4">
         {isAuthenticated && (
           <>
             {user?.is_admin && (
               <button
                 onClick={handleAdminClick}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-gray-800 rounded-md hover:bg-gray-700 transition-colors"
+                className="flex items-center gap-2 bg-white text-gray-700 border-2 border-gray-300 px-5 py-2.5 rounded-lg hover:border-gray-400 hover:shadow-md transition-all font-medium text-sm"
               >
                 <LayoutDashboard size={18} />
                 <span>{showAdminDashboard ? "Map" : "Admin"}</span>
@@ -52,7 +69,7 @@ const TopBar = () => {
             )}
             <button
               onClick={handleProfileClick}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+              className="flex items-center gap-2 bg-white text-gray-700 border-2 border-gray-300 px-5 py-2.5 rounded-lg hover:border-gray-400 hover:shadow-md transition-all font-medium text-sm"
             >
               <User size={18} />
               <span>{showUserProfile ? "Map" : "Profile"}</span>
