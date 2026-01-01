@@ -13,10 +13,13 @@ export const appSlice = createSlice({
     selectedSpot: null as Spot | null,
     selectedEvent: null as Event | null,
     showCreateSpot: false as boolean,
+    showCreateEvent: false as boolean,
     isLoading: false as boolean,
     error: null as string | null,
     onChooseLocation: false as boolean,
+    onChooseEventLocation: false as boolean,
     createSpotLocation: null as Location | null,
+    createEventLocation: null as Location | null,
     currentUserLocation: null as Location | null,
     showAdminDashboard: false as boolean,
     showUserProfile: false as boolean,
@@ -34,6 +37,9 @@ export const appSlice = createSlice({
     setShowCreateSpot: (state, action) => {
       state.showCreateSpot = action.payload as boolean;
     },
+    setShowCreateEvent: (state, action) => {
+      state.showCreateEvent = action.payload as boolean;
+    },
     setIsLoading: (state, action) => {
       state.isLoading = action.payload as boolean;
     },
@@ -43,8 +49,14 @@ export const appSlice = createSlice({
     setOnChooseLocation: (state, action) => {
       state.onChooseLocation = action.payload as boolean;
     },
+    setOnChooseEventLocation: (state, action) => {
+      state.onChooseEventLocation = action.payload as boolean;
+    },
     setCreateSpotLocation: (state, action) => {
       state.createSpotLocation = action.payload as Location | null;
+    },
+    setCreateEventLocation: (state, action) => {
+      state.createEventLocation = action.payload as Location | null;
     },
     setCurrentUserLocation: (state, action) => {
       state.currentUserLocation = action.payload as Location | null;
@@ -71,10 +83,13 @@ export const {
   setSelectedSpot,
   setSelectedEvent,
   setShowCreateSpot,
+  setShowCreateEvent,
   setIsLoading,
   setError,
   setOnChooseLocation,
+  setOnChooseEventLocation,
   setCreateSpotLocation,
+  setCreateEventLocation,
   setCurrentUserLocation,
   setShowAdminDashboard,
   setShowUserProfile,

@@ -3,9 +3,12 @@ import { useMapEvents } from "react-leaflet";
 import { useAppSelector } from "../store/hooks";
 import {
   setCreateSpotLocation,
+  setCreateEventLocation,
   setCurrentUserLocation,
   setOnChooseLocation,
+  setOnChooseEventLocation,
   setShowCreateSpot,
+  setShowCreateEvent,
   setMapBounds,
   setMapZoom,
 } from "../state/AppSlice";
@@ -16,6 +19,9 @@ import { TEL_AVIV_DEFAULT } from "../constants";
 export default function MapEvents() {
   const onChooseLocation = useAppSelector(
     (state) => state.app.onChooseLocation
+  );
+  const onChooseEventLocation = useAppSelector(
+    (state) => state.app.onChooseEventLocation
   );
   const dispatch = useDispatch();
   const hasCenteredRef = useRef(false);
@@ -54,6 +60,13 @@ export default function MapEvents() {
         );
         dispatch(setOnChooseLocation(false));
         dispatch(setShowCreateSpot(true));
+      } else if (onChooseEventLocation) {
+        map.setView(e.latlng, 13);
+        dispatch(
+          setCreateEventLocation({ lat: e.latlng.lat, lng: e.latlng.lng })
+        );
+        dispatch(setOnChooseEventLocation(false));
+        dispatch(setShowCreateEvent(true));
       }
     },
     moveend: () => {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import CreateSpotModal from "./components/CreateSpotModal";
+import CreateEventModal from "./components/CreateEventModal";
 import EventDetail from "./components/EventDetail";
 import Sidebar from "./components/Sidebar";
 import MapView from "./components/MapView";
@@ -109,10 +110,10 @@ const HotSpotter = () => {
           />
           <MapView
             onSelectSpot={onSelectEventFromMap}
-            onToggleCreate={onToggleCreate}
           />
           <EventDetail recentReports={recentReports} />
           <CreateSpotModal />
+          <CreateEventModal />
         </div>
       )}
     </div>
