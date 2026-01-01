@@ -276,7 +276,7 @@ export default function MapView({
         >
           <Navigation size={24} />
         </button>
-        <div className="absolute bottom-full right-0 mb-2 px-2.5 py-1.5 bg-gray-900/90 backdrop-blur-sm text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+        <div className="absolute bottom-full right-0 mb-2 bg-white px-4 py-2 rounded-lg shadow-md text-sm text-gray-700 font-medium opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
           My location
         </div>
       </div>
@@ -309,7 +309,7 @@ export default function MapView({
 
       {/* Spots count indicator */}
       {fetchCheck.shouldFetch && spots && spots.length > 0 && !spotsLoading && (
-        <div className="absolute bottom-24 left-4 bg-white px-3 py-2 rounded-lg shadow-md z-50 text-sm text-gray-700">
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-lg shadow-md z-50 text-sm text-gray-700 font-medium">
           {spots.length} spot{spots.length !== 1 ? 's' : ''} visible
         </div>
       )}
