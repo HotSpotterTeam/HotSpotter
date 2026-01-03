@@ -6,6 +6,7 @@ from app.api.api_models import CreateSpot, SpotResponse, SpotsResponse, UpdateSp
 from app.api.auth_utils import get_current_user
 from geoalchemy2 import WKTElement
 from typing import List
+from app.hs_logging import log_user_action, get_request_session_id
 
 router = APIRouter()
 
@@ -105,7 +106,8 @@ async def get_spot(id: int = Path(...)):
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=SpotResponse)
 async def create_spot(
         spot_data: CreateSpot,
-        current_user: User = Depends(get_current_user)
+        current_user: User = Depends(get_current_user),
+        request_session_id=Depends(get_request_session_id)
 ):
     with get_session() as session:
         # Validate spot_type
@@ -137,6 +139,7 @@ async def create_spot(
         session.add(new_spot)
         session.commit()
         session.refresh(new_spot)
+        log_user_action("create_spot", current_user, new_data=new_spot.to_api_model(), request_session_id=request_session_id)
 
         return SpotResponse(
             id=new_spot.id,
@@ -166,7 +169,8 @@ async def create_spot(
 async def update_spot(
         spot_update: UpdateSpot,
         id: int = Path(...),
-        current_user: User = Depends(get_current_user)
+        current_user: User = Depends(get_current_user),
+        request_session_id=Depends(get_request_session_id)
 ):
     with get_session() as session:
         spot = session.query(Spot).filter(Spot.id == id).first()
@@ -177,6 +181,9 @@ async def update_spot(
         if spot.owner_id != current_user.id and not getattr(current_user, "is_admin", False):
             raise HTTPException(status_code=403, detail="Not authorized to update this spot")
 
+        # Store old data for logging
+        old_data = spot.to_api_model()
+        
         # 1. Extract update data
         update_data = spot_update.model_dump(exclude_unset=True)
 
@@ -195,6 +202,7 @@ async def update_spot(
 
         session.commit()
         session.refresh(spot)
+        log_user_action("update_spot", current_user, new_data=spot.to_api_model(), request_session_id=request_session_id, old_data=old_data)
         return spot.to_api_model()
 
 
@@ -202,7 +210,8 @@ async def update_spot(
 @router.delete("/{id}", status_code=status.HTTP_200_OK)
 async def delete_spot(
         id: int = Path(...),
-        current_user: User = Depends(get_current_user)
+        current_user: User = Depends(get_current_user),
+        request_session_id=Depends(get_request_session_id)
 ):
     with get_session() as session:
         spot = session.query(Spot).filter(Spot.id == id).first()
@@ -212,8 +221,12 @@ async def delete_spot(
         if spot.owner_id != current_user.id and not getattr(current_user, "is_admin", False):
             raise HTTPException(status_code=403, detail="Not authorized to delete this spot")
 
+        # Store deleted data for logging
+        deleted_data = spot.to_api_model()
+        
         session.delete(spot)
         session.commit()
+        log_user_action("delete_spot", current_user, new_data=deleted_data, request_session_id=request_session_id)
         return {"status": "success", "message": "Spot deleted"}
 
 
@@ -221,7 +234,8 @@ async def delete_spot(
 @router.put("/{id}/approve", status_code=status.HTTP_200_OK)
 async def approve_spot(
         id: int = Path(...),
-        current_user: User = Depends(get_current_user)
+        current_user: User = Depends(get_current_user),
+        request_session_id=Depends(get_request_session_id)
 ):
     """
     Approve a newly created spot.
@@ -241,4 +255,6 @@ async def approve_spot(
 
         spot.is_approved = True
         session.commit()
+        session.refresh(spot)
+        log_user_action("approve_spot", current_user, new_data=spot.to_api_model(), request_session_id=request_session_id)
         return {"status": "success", "message": "Spot approved and public"}

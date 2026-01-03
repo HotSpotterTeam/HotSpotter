@@ -132,9 +132,15 @@ def write_response_to_db(status_code, response_body, request_session_id, respons
             log_record.end_time = response_time
             session.commit()
 
-def log_user_action(action, user, data, request_session_id): 
+def log_user_action(action, user, new_data, request_session_id, old_data=None): 
     """Logs a user action to the database ."""
 
+    
+    if old_data is not None:
+        data_to_log = {"new_data": new_data,
+                       "old_data": old_data}
+    else:
+        data_to_log = new_data
     
     log_entry = User_Action_Log(
         user_name=user.username if user else None,
@@ -143,7 +149,7 @@ def log_user_action(action, user, data, request_session_id):
         user_role="admin" if user.is_admin else "user",
         timestamp=datetime.now(timezone.utc).replace(microsecond=0).replace(tzinfo=None),
         action=action,
-        data=json.dumps(data)
+        data=json.dumps(data_to_log)
     )
 
     with get_session() as session:

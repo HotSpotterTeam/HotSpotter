@@ -6,6 +6,7 @@ from app.api.api_models import ReportResponse, CreateReport, UpdateReport, Repor
 from app.api.auth_utils import get_current_user
 from typing import List, Optional
 from datetime import datetime
+from app.hs_logging import log_user_action, get_request_session_id
 
 router = APIRouter()
 
@@ -13,7 +14,8 @@ router = APIRouter()
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_report(
     report_data: CreateReport,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    request_session_id=Depends(get_request_session_id)
 ):
     """
     Create a new report.
@@ -52,6 +54,7 @@ async def create_report(
         session.add(new_report)
         session.commit()
         session.refresh(new_report)
+        log_user_action("create_report", current_user, new_data=new_report.to_api_model(), request_session_id=request_session_id)
         return {"status": "success", "data": new_report.to_api_model()}
 
 @router.get("/", status_code=status.HTTP_200_OK)
@@ -93,7 +96,8 @@ async def get_report(id: int = Path(...)):
 async def update_report(
     report_update: UpdateReport,
     id: int = Path(...),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    request_session_id=Depends(get_request_session_id)
 ):
     with get_session() as session:
         report = session.query(Report).filter(Report.id == id).first()
@@ -105,6 +109,9 @@ async def update_report(
             raise HTTPException(
                 status_code=403, detail="You can only edit your own reports when logged in.")
 
+        # Store old data for logging
+        old_data = report.to_api_model()
+        
         # Update fields
         update_data = report_update.model_dump(exclude_unset=True)
         for key, value in update_data.items():
@@ -112,6 +119,7 @@ async def update_report(
 
         session.commit()
         session.refresh(report)
+        log_user_action("update_report", current_user, new_data=report.to_api_model(), request_session_id=request_session_id, old_data=old_data)
         return {"status": "success", "data": {
             "id": report.id,
             "description": report.description,
@@ -123,7 +131,8 @@ async def update_report(
 @router.delete("/{id}", status_code=status.HTTP_200_OK)
 async def delete_report(
     id: int = Path(...),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    request_session_id=Depends(get_request_session_id)
 ):
     with get_session() as session:
         report = session.query(Report).filter(Report.id == id).first()
@@ -136,15 +145,20 @@ async def delete_report(
             raise HTTPException(
                 status_code=403, detail="Only admins can delete reports")
 
+        # Store deleted data for logging
+        deleted_data = report.to_api_model()
+        
         session.delete(report)
         session.commit()
+        log_user_action("delete_report", current_user, new_data=deleted_data, request_session_id=request_session_id)
         return {"status": "success", "message": "Report deleted"}
 
 
 @router.post("/{id}/flag", status_code=status.HTTP_200_OK)
 async def flag_report(
     id: int = Path(...),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    request_session_id=Depends(get_request_session_id)
 ):
     """Mark a report as inappropriate"""
     with get_session() as session:
@@ -154,13 +168,16 @@ async def flag_report(
 
         report.is_flagged = True
         session.commit()
+
+        log_user_action("flag_report", current_user, new_data=report.to_api_model(), request_session_id=request_session_id)
         return {"status": "success", "message": "Report flagged for review"}
 
 
 @router.delete("/{id}/flag", status_code=status.HTTP_200_OK)
 async def unflag_report(
     id: int = Path(...),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    request_session_id=Depends(get_request_session_id)
 ):
     """Admin removes the flag, approving the report"""
     with get_session() as session:
@@ -174,4 +191,6 @@ async def unflag_report(
 
         report.is_flagged = False
         session.commit()
+
+        log_user_action("unflag_report", current_user, new_data=report.to_api_model(), request_session_id=request_session_id)
         return {"status": "success", "message": "Flag removed"}
