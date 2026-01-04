@@ -7,8 +7,15 @@ from app.api.auth_utils import get_current_user
 from app.api.api_models import UserResponse
 from typing import List, Optional, Dict, Any
 from app.hs_logging import log_user_action, get_request_session_id
+from app.event_status_updater import (
+    update_event_statuses as run_event_status_update,
+    get_event_status_summary as fetch_event_status_summary
+)
+from app.scheduler import run_all_scheduled_tasks_now
+from datetime import datetime
 
 router = APIRouter()
+
 
 # --- Dependency: Admin Only Check ---
 # We use this to protect ALL endpoints in this file.
@@ -16,22 +23,23 @@ router = APIRouter()
 def get_current_admin(current_user: User = Depends(get_current_user)):
     if not getattr(current_user, "is_admin", False):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have admin privileges"
         )
     return current_user
 
+
 # --- 1. LIST USERS ---
 @router.get("/users", status_code=status.HTTP_200_OK, response_model=List[UserResponse])
 async def list_users(
-    id: Optional[int] = Query(None),
-    name: Optional[str] = Query(None),
-    email: Optional[str] = Query(None),
-    username: Optional[str] = Query(None),
-    google_id: Optional[str] = Query(None),
-    is_admin: Optional[bool] = Query(None),
-    search: Optional[str] = Query(None),
-    current_user: User = Depends(get_current_admin)
+        id: Optional[int] = Query(None),
+        name: Optional[str] = Query(None),
+        email: Optional[str] = Query(None),
+        username: Optional[str] = Query(None),
+        google_id: Optional[str] = Query(None),
+        is_admin: Optional[bool] = Query(None),
+        search: Optional[str] = Query(None),
+        current_user: User = Depends(get_current_admin)
 ):
     """
     Get all users with optional filters.
@@ -50,7 +58,7 @@ async def list_users(
             # If search is a number, also check ID
             if search.isdigit():
                 conditions.append(User.id == int(search))
-            
+
             # Apply OR logic
             query = query.filter(or_(*conditions))
 
@@ -70,11 +78,12 @@ async def list_users(
 
         return query.all()
 
+
 # --- 2. GET SINGLE USER ---
 @router.get("/users/{user_id}", status_code=status.HTTP_200_OK, response_model=UserResponse)
 async def get_user(
-    user_id: int = Path(...),
-    current_user: User = Depends(get_current_admin)
+        user_id: int = Path(...),
+        current_user: User = Depends(get_current_admin)
 ):
     with get_session() as session:
         user = session.query(User).filter(User.id == user_id).first()
@@ -82,19 +91,20 @@ async def get_user(
             raise HTTPException(status_code=404, detail="User not found")
         return user
 
+
 # --- 3. TOGGLE USER ROLE ---
 @router.put("/users/{user_id}/role", status_code=status.HTTP_200_OK)
 async def toggle_user_role(
-    user_id: int = Path(...),
-    current_user: User = Depends(get_current_admin),
-    request_session_id=Depends(get_request_session_id)
+        user_id: int = Path(...),
+        current_user: User = Depends(get_current_admin),
+        request_session_id=Depends(get_request_session_id)
 ):
     """
     Toggle a user between 'User' and 'Admin'.
     """
     with get_session() as session:
         user_to_edit = session.query(User).filter(User.id == user_id).first()
-        
+
         if not user_to_edit:
             raise HTTPException(status_code=404, detail="User not found")
 
@@ -104,50 +114,54 @@ async def toggle_user_role(
 
         # Store old data for logging
         old_data = {"user_id": user_to_edit.id, "email": user_to_edit.email, "is_admin": user_to_edit.is_admin}
-        
+
         user_to_edit.is_admin = not user_to_edit.is_admin
         session.commit()
         session.refresh(user_to_edit)
-        
+
         new_data = {"user_id": user_to_edit.id, "email": user_to_edit.email, "is_admin": user_to_edit.is_admin}
-        log_user_action("toggle_user_role", current_user, new_data=new_data, request_session_id=request_session_id, old_data=old_data)
-        
+        log_user_action("toggle_user_role", current_user, new_data=new_data, request_session_id=request_session_id,
+                        old_data=old_data)
+
         role = "Admin" if user_to_edit.is_admin else "User"
         return {"status": "success", "message": f"User {user_to_edit.email} is now {role}"}
+
 
 # --- 4. DELETE USER ---
 @router.delete("/users/{user_id}", status_code=status.HTTP_200_OK)
 async def delete_user(
-    user_id: int = Path(...),
-    current_user: User = Depends(get_current_admin),
-    request_session_id=Depends(get_request_session_id)
+        user_id: int = Path(...),
+        current_user: User = Depends(get_current_admin),
+        request_session_id=Depends(get_request_session_id)
 ):
     """
     Permanently delete a user.
     """
     with get_session() as session:
         user_to_delete = session.query(User).filter(User.id == user_id).first()
-        
+
         if not user_to_delete:
             raise HTTPException(status_code=404, detail="User not found")
-            
+
         # Safety: Prevent accidental self-deletion
         if user_to_delete.id == current_user.id:
             raise HTTPException(status_code=400, detail="You cannot delete your own admin account.")
 
         # Store deleted data for logging
-        deleted_data = {"user_id": user_to_delete.id, "email": user_to_delete.email, "name": user_to_delete.name, "is_admin": user_to_delete.is_admin}
-        
+        deleted_data = {"user_id": user_to_delete.id, "email": user_to_delete.email, "name": user_to_delete.name,
+                        "is_admin": user_to_delete.is_admin}
+
         session.delete(user_to_delete)
         session.commit()
-        
+
         log_user_action("delete_user", current_user, new_data=deleted_data, request_session_id=request_session_id)
         return {"status": "success", "message": f"User {user_to_delete.email} deleted"}
+
 
 # --- 5. GET GLOBAL STATS ---
 @router.get("/stats", status_code=status.HTTP_200_OK)
 async def get_stats(
-    current_user: User = Depends(get_current_admin)
+        current_user: User = Depends(get_current_admin)
 ):
     """
     Returns dashboard statistics:
@@ -166,7 +180,7 @@ async def get_stats(
         total_spots = session.query(Spot).count()
         approved_spots = session.query(Spot).filter(Spot.is_approved == True).count()
         pending_spots = session.query(Spot).filter(Spot.is_approved == False).count()
-        
+
         # Spot Categories breakdown
         spot_categories_data = session.query(Spot.category, func.count(Spot.id)).group_by(Spot.category).all()
         spot_categories = {cat: count for cat, count in spot_categories_data if cat}
@@ -214,3 +228,47 @@ async def get_stats(
                 }
             }
         }
+
+
+# --- 6. EVENT STATUS MANAGEMENT ---
+
+@router.post("/events/update-statuses", status_code=status.HTTP_200_OK)
+async def trigger_event_status_update(
+        current_user: User = Depends(get_current_admin)
+):
+    """
+    Manually trigger event status updates.
+    Updates all event statuses based on their start and end times.
+
+    Status transitions:
+    - pending: start_time > now
+    - active: start_time <= now < end_time
+    - completed: end_time <= now
+
+    Admin only endpoint.
+    """
+    result = run_event_status_update()
+
+    return {
+        "status": "success",
+        "message": "Event statuses updated",
+        "updates": result
+    }
+
+
+@router.get("/events/status-summary", status_code=status.HTTP_200_OK)
+async def get_event_status_summary(
+        current_user: User = Depends(get_current_admin)
+):
+    """
+    Get a summary of event statuses.
+    Returns count of events by status.
+
+    Admin only endpoint.
+    """
+    summary = fetch_event_status_summary()
+
+    return {
+        "status": "success",
+        "data": summary
+    }
