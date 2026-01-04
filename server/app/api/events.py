@@ -168,8 +168,9 @@ async def create_event(
     with get_session() as session:
         location_wkt = None
         final_spot_id = None
+        initial_status = "active"
 
-        # 4. Handle spot_id case - link to existing permanent spot
+        # 3. Handle spot_id case - link to existing permanent spot
         if has_spot:
             spot = session.query(Spot).filter(Spot.id == event_data.spot_id).first()
             if not spot:
@@ -178,13 +179,21 @@ async def create_event(
             location_wkt = spot.location
             final_spot_id = spot.id
 
-        # 5. Handle custom_location case - event at custom location without spot
+            # Auto-approve if:
+            # 1. User owns the spot, OR
+            # 2. Spot is public (beach or park)
+            if spot.owner_id == current_user.id or spot.category in ["beach", "park"]:
+                initial_status = "active"
+            else:
+                initial_status = "pending"
+
+        # 4. Handle custom_location case - event at custom location without spot
         else:
             lng, lat = event_data.custom_location[0], event_data.custom_location[1]
             location_wkt = WKTElement(f"POINT({lng} {lat})", srid=4326)
             final_spot_id = None
 
-        # 6. Create the event
+        # 5. Create the event
         event_model = Event(
             name=event_data.name,
             description=event_data.description,
