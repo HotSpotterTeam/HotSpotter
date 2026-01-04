@@ -186,7 +186,7 @@ async def create_event(
         session.add(event_model)
         session.commit()
         session.refresh(event_model)
-        log_user_action("create_event", current_user, data=event_model.to_api_model(),  request_session_id=request_session_id)
+        log_user_action("create_event", current_user, new_data=event_model.to_api_model(),  request_session_id=request_session_id)
         return EventResponse(status="success", data=event_model.to_api_model())
 
 
@@ -194,7 +194,8 @@ async def create_event(
 async def update_event(
         event_update: UpdateEvent,
         id: int = Path(...),
-        current_user: User = Depends(get_current_user)
+        current_user: User = Depends(get_current_user),
+        request_session_id=Depends(get_request_session_id)
 ):
     """Update event details"""
     with get_session() as session:
@@ -206,6 +207,9 @@ async def update_event(
         if event.owner_id != current_user.id and not getattr(current_user, "is_admin", False):
             raise HTTPException(status_code=403, detail="Not authorized to update this event")
 
+        # Store old data for logging
+        old_data = event.to_api_model()
+        
         update_data = event_update.model_dump(exclude_unset=True)
 
         # Handle start_time/end_time conversion if they are in the update data
@@ -229,13 +233,15 @@ async def update_event(
 
         session.commit()
         session.refresh(event)
+        log_user_action("update_event", current_user, new_data=event.to_api_model(), request_session_id=request_session_id, old_data=old_data)
         return EventResponse(status="success", data=event.to_api_model())
 
 
 @router.delete("/{id}", status_code=status.HTTP_200_OK)
 async def delete_event(
         id: int = Path(...),
-        current_user: User = Depends(get_current_user)
+        current_user: User = Depends(get_current_user),
+        request_session_id=Depends(get_request_session_id)
 ):
     """Delete event (Cascades to reports via DB model)"""
     with get_session() as session:
@@ -246,15 +252,20 @@ async def delete_event(
         if event.owner_id != current_user.id and not getattr(current_user, "is_admin", False):
             raise HTTPException(status_code=403, detail="Not authorized to delete this event")
 
+        # Store deleted data for logging
+        deleted_data = event.to_api_model()
+        
         session.delete(event)
         session.commit()
+        log_user_action("delete_event", current_user, new_data=deleted_data, request_session_id=request_session_id)
         return {"status": "success", "message": "Event deleted"}
 
 
 @router.put("/{id}/approve", status_code=status.HTTP_200_OK)
 async def approve_event(
         id: int = Path(...),
-        current_user: User = Depends(get_current_user)
+        current_user: User = Depends(get_current_user),
+        request_session_id=Depends(get_request_session_id)
 ):
     """
     Approve an event at a spot.
@@ -277,6 +288,8 @@ async def approve_event(
         if event.status == "active":
             return {"status": "success", "message": "Event is already active"}
 
+        
         event.status = "active"
         session.commit()
+        log_user_action("approve_event", current_user, new_data=event.to_api_model(), request_session_id=request_session_id)
         return {"status": "success", "message": "Event approved and active"}

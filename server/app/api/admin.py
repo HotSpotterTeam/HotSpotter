@@ -6,6 +6,7 @@ from app.models import User, Spot, Event, Report
 from app.api.auth_utils import get_current_user
 from app.api.api_models import UserResponse
 from typing import List, Optional, Dict, Any
+from app.hs_logging import log_user_action, get_request_session_id
 
 router = APIRouter()
 
@@ -85,7 +86,8 @@ async def get_user(
 @router.put("/users/{user_id}/role", status_code=status.HTTP_200_OK)
 async def toggle_user_role(
     user_id: int = Path(...),
-    current_user: User = Depends(get_current_admin)
+    current_user: User = Depends(get_current_admin),
+    request_session_id=Depends(get_request_session_id)
 ):
     """
     Toggle a user between 'User' and 'Admin'.
@@ -100,8 +102,15 @@ async def toggle_user_role(
         if user_to_edit.id == current_user.id:
             raise HTTPException(status_code=400, detail="You cannot demote yourself.")
 
+        # Store old data for logging
+        old_data = {"user_id": user_to_edit.id, "email": user_to_edit.email, "is_admin": user_to_edit.is_admin}
+        
         user_to_edit.is_admin = not user_to_edit.is_admin
         session.commit()
+        session.refresh(user_to_edit)
+        
+        new_data = {"user_id": user_to_edit.id, "email": user_to_edit.email, "is_admin": user_to_edit.is_admin}
+        log_user_action("toggle_user_role", current_user, new_data=new_data, request_session_id=request_session_id, old_data=old_data)
         
         role = "Admin" if user_to_edit.is_admin else "User"
         return {"status": "success", "message": f"User {user_to_edit.email} is now {role}"}
@@ -110,7 +119,8 @@ async def toggle_user_role(
 @router.delete("/users/{user_id}", status_code=status.HTTP_200_OK)
 async def delete_user(
     user_id: int = Path(...),
-    current_user: User = Depends(get_current_admin)
+    current_user: User = Depends(get_current_admin),
+    request_session_id=Depends(get_request_session_id)
 ):
     """
     Permanently delete a user.
@@ -125,8 +135,13 @@ async def delete_user(
         if user_to_delete.id == current_user.id:
             raise HTTPException(status_code=400, detail="You cannot delete your own admin account.")
 
+        # Store deleted data for logging
+        deleted_data = {"user_id": user_to_delete.id, "email": user_to_delete.email, "name": user_to_delete.name, "is_admin": user_to_delete.is_admin}
+        
         session.delete(user_to_delete)
         session.commit()
+        
+        log_user_action("delete_user", current_user, new_data=deleted_data, request_session_id=request_session_id)
         return {"status": "success", "message": f"User {user_to_delete.email} deleted"}
 
 # --- 5. GET GLOBAL STATS ---

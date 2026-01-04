@@ -4,6 +4,7 @@ from app.db import get_session
 from app.models import User, Spot, Event, SpotFavorite, EventSubscription
 from app.api.auth_utils import get_current_user
 from typing import List
+from app.hs_logging import log_user_action, get_request_session_id
 
 router = APIRouter()
 
@@ -29,7 +30,8 @@ async def get_favorite_spots(current_user: User = Depends(get_current_user)):
 @router.post("/spots/{spot_id}/favorite", status_code=status.HTTP_201_CREATED)
 async def favorite_spot(
     spot_id: int = Path(...),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    request_session_id=Depends(get_request_session_id)
 ):
     """Add a spot to favorites"""
     with get_session() as session:
@@ -54,14 +56,17 @@ async def favorite_spot(
         )
         session.add(favorite)
         session.commit()
+        session.refresh(favorite)
         
+        log_user_action("favorite_spot", current_user, new_data={"spot_id": spot_id, "user_id": current_user.id}, request_session_id=request_session_id)
         return {"status": "success", "message": "Spot added to favorites"}
 
 
 @router.delete("/spots/{spot_id}/favorite", status_code=status.HTTP_200_OK)
 async def unfavorite_spot(
     spot_id: int = Path(...),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    request_session_id=Depends(get_request_session_id)
 ):
     """Remove a spot from favorites"""
     with get_session() as session:
@@ -73,9 +78,13 @@ async def unfavorite_spot(
         if not favorite:
             raise HTTPException(status_code=404, detail="Favorite not found")
         
+        # Store deleted data for logging
+        deleted_data = {"spot_id": spot_id, "user_id": current_user.id}
+        
         session.delete(favorite)
         session.commit()
         
+        log_user_action("unfavorite_spot", current_user, new_data=deleted_data, request_session_id=request_session_id)
         return {"status": "success", "message": "Spot removed from favorites"}
 
 
@@ -101,7 +110,8 @@ async def get_subscribed_events(current_user: User = Depends(get_current_user)):
 @router.post("/events/{event_id}/subscribe", status_code=status.HTTP_201_CREATED)
 async def subscribe_to_event(
     event_id: int = Path(...),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    request_session_id=Depends(get_request_session_id)
 ):
     """Subscribe to an event"""
     with get_session() as session:
@@ -126,14 +136,17 @@ async def subscribe_to_event(
         )
         session.add(subscription)
         session.commit()
+        session.refresh(subscription)
         
+        log_user_action("subscribe_to_event", current_user, new_data={"event_id": event_id, "user_id": current_user.id}, request_session_id=request_session_id)
         return {"status": "success", "message": "Subscribed to event"}
 
 
 @router.delete("/events/{event_id}/subscribe", status_code=status.HTTP_200_OK)
 async def unsubscribe_from_event(
     event_id: int = Path(...),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    request_session_id=Depends(get_request_session_id)
 ):
     """Unsubscribe from an event"""
     with get_session() as session:
@@ -145,7 +158,11 @@ async def unsubscribe_from_event(
         if not subscription:
             raise HTTPException(status_code=404, detail="Subscription not found")
         
+        # Store deleted data for logging
+        deleted_data = {"event_id": event_id, "user_id": current_user.id}
+        
         session.delete(subscription)
         session.commit()
         
+        log_user_action("unsubscribe_from_event", current_user, new_data=deleted_data, request_session_id=request_session_id)
         return {"status": "success", "message": "Unsubscribed from event"}
