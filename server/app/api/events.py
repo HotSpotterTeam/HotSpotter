@@ -5,7 +5,10 @@ from app.models import Event, User, Spot, Report
 from app.api.api_models import CreateEvent, EventsResponse, EventResponse, UpdateEvent
 from app.api.auth_utils import get_current_user
 from geoalchemy2 import WKTElement
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta , timezone
+import pytz
+
+LOCAL_TZ = pytz.timezone('Asia/Jerusalem')
 
 from app.hs_logging import log_user_action, get_request_session_id
 
@@ -106,8 +109,10 @@ async def create_event(
     """
     Create new event.
     - Must provide EITHER spot_id OR custom_location (not both, not neither)
-    - If spot_id: Link to existing spot, status='pending' unless user owns the spot
-    - If custom_location: Event stored at custom location with spot_id=null, status='active'
+    - Status is automatically set based on start/end times:
+      - pending: event hasn't started yet
+      - active: event is currently happening
+      - completed: event has already ended
     - Validates end_time > start_time
     """
 
@@ -143,6 +148,23 @@ async def create_event(
             detail="end_time must be after start_time"
         )
 
+    # 3. Calculate initial status based on event times
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    # Ensure parsed times are naive (no timezone info)
+    if start_time.tzinfo is not None:
+        start_time = LOCAL_TZ.localize(start_time).astimezone(timezone.utc).replace(tzinfo=None)
+    if end_time.tzinfo is not None:
+        end_time = LOCAL_TZ.localize(end_time).astimezone(timezone.utc).replace(tzinfo=None)
+
+    # Determine status
+    if end_time < now:
+        initial_status = "completed"
+    elif start_time <= now < end_time:
+        initial_status = "active"
+    else:  # start_time > now
+        initial_status = "pending"
+
     with get_session() as session:
         location_wkt = None
         final_spot_id = None
@@ -170,7 +192,6 @@ async def create_event(
             lng, lat = event_data.custom_location[0], event_data.custom_location[1]
             location_wkt = WKTElement(f"POINT({lng} {lat})", srid=4326)
             final_spot_id = None
-            initial_status = "active"
 
         # 5. Create the event
         event_model = Event(
