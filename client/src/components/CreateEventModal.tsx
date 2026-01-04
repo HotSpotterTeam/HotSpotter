@@ -7,7 +7,7 @@ import {
   setShowCreateEvent,
   Location,
 } from "../state/AppSlice";
-import { MapPin, Calendar, MapPinned, Navigation } from "lucide-react";
+import { MapPin, Calendar, MapPinned, Navigation, Clock } from "lucide-react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "../store/hooks";
 import { useFormik } from "formik";
@@ -53,6 +53,7 @@ export default function CreateEventModal() {
   const [selectedSpotId, setSelectedSpotId] = useState<number | null>(null);
   const [spotSearchTerm, setSpotSearchTerm] = useState("");
   const [showSpotDropdown, setShowSpotDropdown] = useState(false);
+  const [createdEvent, setCreatedEvent] = useState<any>(null);
 
   const API_URL =
     import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "http://127.0.0.1:8000";
@@ -107,8 +108,9 @@ export default function CreateEventModal() {
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
+      setCreatedEvent(data.data);
       setShowSuccess(true);
       formik.resetForm();
       setLocationType(null);
@@ -170,6 +172,7 @@ export default function CreateEventModal() {
     dispatch(setCreateEventLocation(null));
     setLocationError("");
     setShowSuccess(false);
+    setCreatedEvent(null);
     setLocationType(null);
     setSelectedSpotId(null);
     setSpotSearchTerm("");
@@ -230,11 +233,21 @@ export default function CreateEventModal() {
       <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         {showSuccess ? (
           <div className="text-center py-8">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Calendar className="text-green-600" size={32} />
+            <div className={`w-16 h-16 ${createdEvent?.status === 'pending' ? 'bg-orange-100' : 'bg-green-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+              {createdEvent?.status === 'pending' ? (
+                <Clock className="text-orange-600" size={32} />
+              ) : (
+                <Calendar className="text-green-600" size={32} />
+              )}
             </div>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">Event Created!</h3>
-            <p className="text-gray-600 mb-6">Your event has been created successfully.</p>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">
+              {createdEvent?.status === 'pending' ? 'Event Awaiting Approval' : 'Event Created!'}
+            </h3>
+            <p className="text-gray-600 mb-6">
+              {createdEvent?.status === 'pending' 
+                ? 'Your event needs approval by the spot owner. You\'ll be notified when it\'s approved.'
+                : 'Your event has been created successfully.'}
+            </p>
             <button
               onClick={onClose}
               className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium"

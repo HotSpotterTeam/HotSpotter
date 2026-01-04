@@ -157,8 +157,10 @@ async def create_event(
             location_wkt = spot.location
             final_spot_id = spot.id
 
-            # Auto-approve if user owns the spot
-            if spot.owner_id == current_user.id:
+            # Auto-approve if:
+            # 1. User owns the spot, OR
+            # 2. Spot is public (beach or park)
+            if spot.owner_id == current_user.id or spot.category in ["beach", "park"]:
                 initial_status = "active"
             else:
                 initial_status = "pending"

@@ -31,6 +31,7 @@ const UserProfilePage = () => {
   const [myReports, setMyReports] = useState<Report[]>([]);
   const [favoriteSpots, setFavoriteSpots] = useState<Spot[]>([]);
   const [subscribedEvents, setSubscribedEvents] = useState<Event[]>([]);
+  const [pendingEventsAtMySpots, setPendingEventsAtMySpots] = useState<Event[]>([]);
 
   const [spotNames, setSpotNames] = useState<Record<number, string>>({});
   const [eventNames, setEventNames] = useState<Record<number, string>>({});
@@ -217,6 +218,50 @@ const UserProfilePage = () => {
     }
   };
 
+  const loadPendingEventsAtMySpots = async () => {
+    if (!user || mySpots.length === 0) return;
+    try {
+      // Get all pending events
+      const data: any = await authFetch(`/api/events/?status=pending`);
+      const allPendingEvents = data.data || [];
+      
+      // Filter to only show events at spots I own (but not created by me)
+      const mySpotIds = mySpots.map(spot => spot.id);
+      const pendingAtMySpots = allPendingEvents.filter(
+        (event: Event) => event.spot_id && mySpotIds.includes(event.spot_id) && event.owner_id !== user.id
+      );
+      
+      setPendingEventsAtMySpots(pendingAtMySpots);
+
+      // Load spot names for these events
+      const spotIds = pendingAtMySpots
+        .filter((event: Event) => event.spot_id)
+        .map((event: Event) => event.spot_id as number);
+
+      const uniqueSpotIds = [...new Set(spotIds)];
+
+      await Promise.all(
+        uniqueSpotIds.map(async (spotId) => {
+          if (!spotNames[spotId]) {
+            await fetchSpotName(spotId);
+          }
+        })
+      );
+    } catch (err) {
+      console.error("Failed to load pending events:", err);
+    }
+  };
+
+  const handleApproveEvent = async (eventId: number) => {
+    try {
+      await authFetch(`/api/events/${eventId}/approve`, { method: "PUT" });
+      // Reload events
+      await Promise.all([loadMyEvents(), loadPendingEventsAtMySpots()]);
+    } catch (err: any) {
+      alert(err.message || "Failed to approve event");
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
 
@@ -235,6 +280,13 @@ const UserProfilePage = () => {
 
     loadAllData();
   }, [user]);
+
+  // Load pending events when spots are loaded
+  useEffect(() => {
+    if (mySpots.length > 0) {
+      loadPendingEventsAtMySpots();
+    }
+  }, [mySpots.length]);
 
   // Clear search when switching tabs
   useEffect(() => {
@@ -461,16 +513,69 @@ const UserProfilePage = () => {
         )}
 
         {activeTab === "events" && (
-          <div className="space-y-4">
-            {filteredEvents.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-                <Calendar size={48} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-500">
-                  {searchTerm ? "No events match your search" : "You haven't created any events yet"}
-                </p>
+          <div className="space-y-6">
+            {/* Pending Events Awaiting My Approval */}
+            {pendingEventsAtMySpots.length > 0 && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-orange-800 mb-4 flex items-center gap-2">
+                  <AlertCircle size={20} />
+                  Events Awaiting Your Approval ({pendingEventsAtMySpots.length})
+                </h3>
+                <div className="space-y-3">
+                  {pendingEventsAtMySpots.map(event => (
+                    <div key={event.id} className="bg-white p-4 rounded-lg shadow-sm border border-orange-300">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h4 className="text-md font-semibold text-gray-800">{event.name}</h4>
+                            <span className="flex items-center gap-1 text-xs font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded-full border border-orange-200">
+                              <Clock size={14} />
+                              Needs Approval
+                            </span>
+                          </div>
+                          {event.description && (
+                            <p className="text-sm text-gray-600 mb-2">{event.description}</p>
+                          )}
+                          <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
+                            <span className="capitalize bg-gray-100 px-2 py-1 rounded">
+                              {event.category}
+                            </span>
+                            {event.spot_id && (
+                              <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                                At: {spotNames[event.spot_id] || `Spot #${event.spot_id}`}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            <div><span className="text-gray-500">Start:</span> {new Date(event.start_time).toLocaleString()}</div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleApproveEvent(event.id)}
+                          className="flex items-center gap-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 font-medium text-sm transition-colors"
+                        >
+                          <CheckCircle size={16} />
+                          Approve
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ) : (
-              filteredEvents.map(event => (
+            )}
+
+            {/* My Events */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">My Events</h3>
+              {filteredEvents.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+                  <Calendar size={48} className="mx-auto text-gray-300 mb-3" />
+                  <p className="text-gray-500">
+                    {searchTerm ? "No events match your search" : "You haven't created any events yet"}
+                  </p>
+                </div>
+              ) : (
+                filteredEvents.map(event => (
                 <div key={event.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -537,6 +642,7 @@ const UserProfilePage = () => {
                 </div>
               ))
             )}
+            </div>
           </div>
         )}
 
