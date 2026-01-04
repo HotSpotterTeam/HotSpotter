@@ -102,75 +102,37 @@ async def get_event(id: int = Path(...)) -> EventResponse:
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_event(
-        event_data: CreateEvent,
-        current_user: User = Depends(get_current_user),
-        request_session_id=Depends(get_request_session_id)
+    event_data: CreateEvent,
+    current_user: User = Depends(get_current_user),
+    request_session_id=Depends(get_request_session_id)
 ) -> EventResponse:
-    """
-    Create new event.
-    - Must provide EITHER spot_id OR custom_location (not both, not neither)
-    - Status is automatically set based on start/end times:
-      - pending: event hasn't started yet
-      - active: event is currently happening
-      - completed: event has already ended
-    - Validates end_time > start_time
-    """
 
     # 1. Validate spot_id XOR custom_location
     has_spot = event_data.spot_id is not None
     has_custom = event_data.custom_location is not None and len(event_data.custom_location) == 2
 
-    if not has_spot and not has_custom:
+    if has_spot == has_custom:
         raise HTTPException(
             status_code=400,
-            detail="Must provide either spot_id or custom_location"
+            detail="Must provide either spot_id or custom_location (but not both)"
         )
 
-    if has_spot and has_custom:
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot provide both spot_id and custom_location"
-        )
-
-    # 2. Parse and validate times
+    # 2. Parse times
     try:
         start_time = datetime.fromisoformat(event_data.start_time)
         end_time = datetime.fromisoformat(event_data.end_time)
     except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid datetime format. Use ISO format: YYYY-MM-DDTHH:MM:SS"
-        )
+        raise HTTPException(status_code=400, detail="Invalid datetime format")
 
     if end_time <= start_time:
-        raise HTTPException(
-            status_code=400,
-            detail="end_time must be after start_time"
-        )
-
-    # 3. Calculate initial status based on event times
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-
-    # Ensure parsed times are naive (no timezone info)
-    if start_time.tzinfo is not None:
-        start_time = LOCAL_TZ.localize(start_time).astimezone(timezone.utc).replace(tzinfo=None)
-    if end_time.tzinfo is not None:
-        end_time = LOCAL_TZ.localize(end_time).astimezone(timezone.utc).replace(tzinfo=None)
-
-    # Determine status
-    if end_time < now:
-        initial_status = "completed"
-    elif start_time <= now < end_time:
-        initial_status = "active"
-    else:  # start_time > now
-        initial_status = "pending"
+        raise HTTPException(status_code=400, detail="end_time must be after start_time")
 
     with get_session() as session:
         location_wkt = None
         final_spot_id = None
-        initial_status = "active"
+        is_approved = False
 
-        # 3. Handle spot_id case - link to existing permanent spot
+        # 3. Spot event
         if has_spot:
             spot = session.query(Spot).filter(Spot.id == event_data.spot_id).first()
             if not spot:
@@ -179,22 +141,25 @@ async def create_event(
             location_wkt = spot.location
             final_spot_id = spot.id
 
-            # Auto-approve if:
-            # 1. User owns the spot, OR
-            # 2. Spot is public (beach or park)
             if spot.owner_id == current_user.id or spot.category in ["beach", "park"]:
-                initial_status = "active"
-            else:
-                initial_status = "pending"
+                is_approved = True
 
-        # 4. Handle custom_location case - event at custom location without spot
+        # 4. Custom location event
         else:
-            lng, lat = event_data.custom_location[0], event_data.custom_location[1]
+            lng, lat = event_data.custom_location
             location_wkt = WKTElement(f"POINT({lng} {lat})", srid=4326)
             final_spot_id = None
+            is_approved = True
 
-        # 5. Create the event
-        event_model = Event(
+        # 5. Resolve final status
+        initial_status = resolve_event_status(
+            is_approved=is_approved,
+            start_time=start_time,
+            end_time=end_time
+        )
+
+        # 6. Create event
+        event = Event(
             name=event_data.name,
             description=event_data.description,
             location=location_wkt,
@@ -206,11 +171,18 @@ async def create_event(
             spot_id=final_spot_id
         )
 
-        session.add(event_model)
+        session.add(event)
         session.commit()
-        session.refresh(event_model)
-        log_user_action("create_event", current_user, new_data=event_model.to_api_model(),  request_session_id=request_session_id)
-        return EventResponse(status="success", data=event_model.to_api_model())
+        session.refresh(event)
+
+        log_user_action(
+            "create_event",
+            current_user,
+            new_data=event.to_api_model(),
+            request_session_id=request_session_id
+        )
+
+        return EventResponse(status="success", data=event.to_api_model())
 
 
 @router.put("/{id}", status_code=status.HTTP_200_OK)
@@ -311,8 +283,26 @@ async def approve_event(
         if event.status == "active":
             return {"status": "success", "message": "Event is already active"}
 
-        
-        event.status = "active"
+        event.status = resolve_event_status(
+            is_approved=True,
+            start_time=event.start_time,
+            end_time=event.end_time
+        )
         session.commit()
         log_user_action("approve_event", current_user, new_data=event.to_api_model(), request_session_id=request_session_id)
         return {"status": "success", "message": "Event approved and active"}
+
+
+def resolve_event_status(is_approved: bool, start_time: datetime, end_time: datetime) -> str:
+    now = datetime.utcnow()
+
+    if not is_approved:
+        return "pending"
+
+    if end_time < now:
+        return "completed"
+
+    if start_time > now:
+        return "pending-start"
+
+    return "active"

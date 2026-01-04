@@ -18,63 +18,58 @@ def get_time_now():
 def update_event_statuses():
     """
     Update event statuses based on current Israel time.
-    - Events with start_time in the future: status = 'pending'
-    - Events with start_time in the past and end_time in the future: status = 'active'
-    - Events with end_time in the past: status = 'completed'
 
-    Returns:
-        dict: Summary of updates performed
+    Rules:
+    - pending          → waiting for approval (NEVER auto-changed)
+    - pending-start    → approved, waiting for start_time
+    - active           → event is happening
+    - completed        → event ended
     """
     now = get_time_now()
 
     with get_session() as session:
         updated_counts = {
-            "to_pending": 0,
+            "to_pending-start": 0,
             "to_active": 0,
             "to_completed": 0,
             "total": 0
         }
 
-        # Get all events that are not cancelled
+        # ONLY approved events
         events = session.query(Event).filter(
-            Event.status.in_(['active', 'pending', 'completed'])
+            Event.status.in_(["pending-start", "active"])
         ).all()
 
-        logger.info(f"Checking {len(events)} events for status updates at {now} (Israel time)")
+        logger.info(f"Checking {len(events)} approved events at {now} (Israel time)")
 
         for event in events:
             old_status = event.status
-            new_status = None
+            new_status = old_status
 
-            # Event times are stored as naive datetimes in Israel timezone
             start_time = event.start_time
             end_time = event.end_time
 
-            # Determine new status based on time
+            # Completed always wins
             if end_time < now:
-                new_status = 'completed'
+                new_status = "completed"
+
+            # Start event
             elif start_time <= now < end_time:
-                new_status = 'active'
+                new_status = "active"
+
+            # Still waiting
             elif start_time > now:
-                new_status = 'pending'
+                new_status = "pending-start"
 
-            # Log comparison for debugging
             if new_status != old_status:
-                logger.info(
-                    f"Event {event.id} ({event.name}): "
-                    f"start={start_time}, end={end_time}, now={now}, "
-                    f"old_status={old_status}, new_status={new_status}"
-                )
-
-            # Update if status changed
-            if new_status and new_status != old_status:
                 event.status = new_status
                 updated_counts[f"to_{new_status}"] += 1
                 updated_counts["total"] += 1
 
                 logger.info(
-                    f"Event {event.id} ({event.name}) status updated: "
-                    f"{old_status} -> {new_status}"
+                    f"Event {event.id} ({event.name}) "
+                    f"{old_status} → {new_status} "
+                    f"(start={start_time}, end={end_time}, now={now})"
                 )
 
         if updated_counts["total"] > 0:
