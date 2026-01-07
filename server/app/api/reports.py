@@ -7,15 +7,16 @@ from app.api.auth_utils import get_current_user
 from typing import List, Optional
 from datetime import datetime
 from app.hs_logging import log_user_action, get_request_session_id
+from app.notification_utils import notify_report_flagged, notify_report_added_to_spot, notify_report_added_to_event
 
 router = APIRouter()
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_report(
-    report_data: CreateReport,
-    current_user: User = Depends(get_current_user),
-    request_session_id=Depends(get_request_session_id)
+        report_data: CreateReport,
+        current_user: User = Depends(get_current_user),
+        request_session_id=Depends(get_request_session_id)
 ):
     """
     Create a new report.
@@ -29,13 +30,37 @@ async def create_report(
         raise HTTPException(status_code=400, detail="Cannot report both Event and Spot at the same time.")
 
     with get_session() as session:
-        # Verify the Event/Spot exists
+        owner_to_notify = None
+        notification_data = {}
+
+        # Verify the Event/Spot exists and get owner info
         if report_data.event_id:
-            if not session.query(Event).get(report_data.event_id):
+            event = session.query(Event).get(report_data.event_id)
+            if not event:
                 raise HTTPException(status_code=404, detail="Event not found")
+
+            # Only notify if the report is not by the event owner
+            if event.owner_id and event.owner_id != current_user.id:
+                owner_to_notify = event.owner_id
+                notification_data = {
+                    "type": "event",
+                    "event_id": event.id,
+                    "event_name": event.name
+                }
+
         if report_data.spot_id:
-            if not session.query(Spot).get(report_data.spot_id):
+            spot = session.query(Spot).get(report_data.spot_id)
+            if not spot:
                 raise HTTPException(status_code=404, detail="Spot not found")
+
+            # Only notify if the report is not by the spot owner
+            if spot.owner_id != current_user.id:
+                owner_to_notify = spot.owner_id
+                notification_data = {
+                    "type": "spot",
+                    "spot_id": spot.id,
+                    "spot_name": spot.name
+                }
 
         # Create the report
         new_report = Report(
@@ -50,11 +75,33 @@ async def create_report(
             is_flagged=False,
             score=report_data.score
         )
-        
+
         session.add(new_report)
         session.commit()
         session.refresh(new_report)
-        log_user_action("create_report", current_user, new_data=new_report.to_api_model(), request_session_id=request_session_id)
+
+        log_user_action("create_report", current_user, new_data=new_report.to_api_model(),
+                        request_session_id=request_session_id)
+
+        # Send notification to owner if needed
+        if owner_to_notify:
+            from app.notification_utils import notify_report_added_to_spot, notify_report_added_to_event
+
+            if notification_data["type"] == "spot":
+                notify_report_added_to_spot(
+                    new_report.id,
+                    notification_data["spot_id"],
+                    notification_data["spot_name"],
+                    owner_to_notify
+                )
+            elif notification_data["type"] == "event":
+                notify_report_added_to_event(
+                    new_report.id,
+                    notification_data["event_id"],
+                    notification_data["event_name"],
+                    owner_to_notify
+                )
+
         return {"status": "success", "data": new_report.to_api_model()}
 
 @router.get("/", status_code=status.HTTP_200_OK)
@@ -156,9 +203,9 @@ async def delete_report(
 
 @router.post("/{id}/flag", status_code=status.HTTP_200_OK)
 async def flag_report(
-    id: int = Path(...),
-    current_user: User = Depends(get_current_user),
-    request_session_id=Depends(get_request_session_id)
+        id: int = Path(...),
+        current_user: User = Depends(get_current_user),
+        request_session_id=Depends(get_request_session_id)
 ):
     """Mark a report as inappropriate"""
     with get_session() as session:
@@ -169,7 +216,13 @@ async def flag_report(
         report.is_flagged = True
         session.commit()
 
-        log_user_action("flag_report", current_user, new_data=report.to_api_model(), request_session_id=request_session_id)
+        log_user_action("flag_report", current_user, new_data=report.to_api_model(),
+                        request_session_id=request_session_id)
+
+        # Send notification to report owner
+        from app.notification_utils import notify_report_flagged
+        notify_report_flagged(report.id, report.description, report.user_id)
+
         return {"status": "success", "message": "Report flagged for review"}
 
 

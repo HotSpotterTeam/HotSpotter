@@ -256,5 +256,12 @@ async def approve_spot(
         spot.is_approved = True
         session.commit()
         session.refresh(spot)
-        log_user_action("approve_spot", current_user, new_data=spot.to_api_model(), request_session_id=request_session_id)
+
+        log_user_action("approve_spot", current_user, new_data=spot.to_api_model(),
+                        request_session_id=request_session_id)
+
+        # Send notification to spot owner
+        from app.notification_utils import notify_spot_approved
+        notify_spot_approved(spot.id, spot.name, spot.owner_id)
+
         return {"status": "success", "message": "Spot approved and public"}

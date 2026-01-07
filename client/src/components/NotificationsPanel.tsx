@@ -74,6 +74,12 @@ const NotificationsPanel: React.FC = () => {
         return "🎉";
       case "report_flagged":
         return "⚠️";
+      case "event_pending_approval":
+        return "📅";
+      case "report_added_to_spot":
+        return "📍";
+      case "report_added_to_event":
+        return "📝";
       default:
         return "📢";
     }

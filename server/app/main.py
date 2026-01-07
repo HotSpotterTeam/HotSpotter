@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.hs_logging import middleware_http_request_logger
 import logging
 
-from .api import auth, events, reports, admin, utils, spots, favorites
+from .api import auth, events, reports, admin, utils, spots, favorites,notifications
 from .scheduler import start_scheduler, stop_scheduler, schedule_event_status_updates
 
 logger = logging.getLogger(__name__)
@@ -52,6 +52,7 @@ app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(utils.router, prefix="/api", tags=["utils"])
 app.include_router(spots.router, prefix="/api/spots", tags=["spots"])
 app.include_router(favorites.router, prefix="/api", tags=["favorites"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 
 
 @app.get("/", tags=["root"])

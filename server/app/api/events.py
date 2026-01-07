@@ -7,6 +7,7 @@ from app.api.auth_utils import get_current_user
 from geoalchemy2 import WKTElement
 from datetime import date, datetime, time, timedelta , timezone
 import pytz
+from app.notification_utils import notify_event_approved, notify_event_created_at_spot
 
 LOCAL_TZ = pytz.timezone('Asia/Jerusalem')
 
@@ -131,6 +132,8 @@ async def create_event(
         location_wkt = None
         final_spot_id = None
         is_approved = False
+        spot_owner_to_notify = None
+        spot_name_for_notification = None
 
         # 3. Spot event
         if has_spot:
@@ -143,6 +146,10 @@ async def create_event(
 
             if spot.owner_id == current_user.id or spot.category in ["beach", "park"]:
                 is_approved = True
+            else:
+                # Someone else's spot - need to notify owner
+                spot_owner_to_notify = spot.owner_id
+                spot_name_for_notification = spot.name
 
         # 4. Custom location event
         else:
@@ -181,6 +188,16 @@ async def create_event(
             new_data=event.to_api_model(),
             request_session_id=request_session_id
         )
+
+        # 7. Send notification to spot owner if needed
+        if spot_owner_to_notify and spot_name_for_notification:
+            from app.notification_utils import notify_event_created_at_spot
+            notify_event_created_at_spot(
+                event.id,
+                event.name,
+                spot_name_for_notification,
+                spot_owner_to_notify
+            )
 
         return EventResponse(status="success", data=event.to_api_model())
 
@@ -289,7 +306,13 @@ async def approve_event(
             end_time=event.end_time
         )
         session.commit()
-        log_user_action("approve_event", current_user, new_data=event.to_api_model(), request_session_id=request_session_id)
+        log_user_action("approve_event", current_user, new_data=event.to_api_model(),
+                        request_session_id=request_session_id)
+
+        # Send notification to event owner
+        from app.notification_utils import notify_event_approved
+        notify_event_approved(event.id, event.name, event.owner_id)
+
         return {"status": "success", "message": "Event approved and active"}
 
 
