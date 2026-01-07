@@ -77,3 +77,14 @@ export interface Spot {
   owner_id: number;
   description?: string;
 }
+
+export interface Notification {
+  id: number;
+  user_id: number;
+  notification_type: string;
+  title: string;
+  message: string;
+  related_id?: number;
+  is_read: boolean;
+  created_at: string;
+}

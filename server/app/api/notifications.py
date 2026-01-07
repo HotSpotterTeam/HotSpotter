@@ -12,8 +12,8 @@ router = APIRouter()
 
 @router.get("/", status_code=status.HTTP_200_OK)
 async def get_notifications(
-    unread_only: bool = Query(False, description="Filter for unread notifications only"),
-    current_user: User = Depends(get_current_user)
+        unread_only: bool = Query(False, description="Filter for unread notifications only"),
+        current_user: User = Depends(get_current_user)
 ):
     """
     Get all notifications for the current user.
@@ -23,12 +23,12 @@ async def get_notifications(
         query = session.query(Notification).filter(
             Notification.user_id == current_user.id
         )
-        
+
         if unread_only:
             query = query.filter(Notification.is_read == False)
-        
+
         notifications = query.order_by(desc(Notification.created_at)).all()
-        
+
         return {
             "status": "success",
             "data": [notif.to_api_model() for notif in notifications]
@@ -37,7 +37,7 @@ async def get_notifications(
 
 @router.get("/unread-count", status_code=status.HTTP_200_OK)
 async def get_unread_count(
-    current_user: User = Depends(get_current_user)
+        current_user: User = Depends(get_current_user)
 ):
     """
     Get count of unread notifications for the current user.
@@ -47,7 +47,7 @@ async def get_unread_count(
             Notification.user_id == current_user.id,
             Notification.is_read == False
         ).count()
-        
+
         return {
             "status": "success",
             "count": count
@@ -56,8 +56,8 @@ async def get_unread_count(
 
 @router.put("/{notification_id}/read", status_code=status.HTTP_200_OK)
 async def mark_as_read(
-    notification_id: int,
-    current_user: User = Depends(get_current_user)
+        notification_id: int,
+        current_user: User = Depends(get_current_user)
 ):
     """
     Mark a notification as read.
@@ -67,13 +67,13 @@ async def mark_as_read(
             Notification.id == notification_id,
             Notification.user_id == current_user.id
         ).first()
-        
+
         if not notification:
             return {"status": "error", "message": "Notification not found"}, 404
-        
+
         notification.is_read = True
         session.commit()
-        
+
         return {
             "status": "success",
             "message": "Notification marked as read"
@@ -82,7 +82,7 @@ async def mark_as_read(
 
 @router.put("/read-all", status_code=status.HTTP_200_OK)
 async def mark_all_as_read(
-    current_user: User = Depends(get_current_user)
+        current_user: User = Depends(get_current_user)
 ):
     """
     Mark all notifications as read for the current user.
@@ -92,9 +92,9 @@ async def mark_all_as_read(
             Notification.user_id == current_user.id,
             Notification.is_read == False
         ).update({"is_read": True})
-        
+
         session.commit()
-        
+
         return {
             "status": "success",
             "message": "All notifications marked as read"
@@ -103,8 +103,8 @@ async def mark_all_as_read(
 
 @router.delete("/{notification_id}", status_code=status.HTTP_200_OK)
 async def delete_notification(
-    notification_id: int,
-    current_user: User = Depends(get_current_user)
+        notification_id: int,
+        current_user: User = Depends(get_current_user)
 ):
     """
     Delete a notification.
@@ -114,13 +114,13 @@ async def delete_notification(
             Notification.id == notification_id,
             Notification.user_id == current_user.id
         ).first()
-        
+
         if not notification:
             return {"status": "error", "message": "Notification not found"}, 404
-        
+
         session.delete(notification)
         session.commit()
-        
+
         return {
             "status": "success",
             "message": "Notification deleted"

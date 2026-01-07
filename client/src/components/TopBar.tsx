@@ -1,10 +1,11 @@
 import React from "react";
-import { MapPin, Bell, User, LayoutDashboard } from "lucide-react";
+import { MapPin, User, LayoutDashboard } from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../state/store";
 import { useAppSelector } from "../store/hooks";
 import GoogleSignInButton from "./GoogleSignInButton";
 import UserProfile from "./UserProfile";
+import NotificationsPanel from "./NotificationsPanel";
 import { setShowAdminDashboard, setShowUserProfile, setShowCreateEvent, setShowCreateSpot } from "../state/AppSlice";
 
 const TopBar = () => {
@@ -58,6 +59,7 @@ const TopBar = () => {
       <div className="flex items-center gap-4">
         {isAuthenticated && (
           <>
+            <NotificationsPanel />
             {user?.is_admin && (
               <button
                 onClick={handleAdminClick}
