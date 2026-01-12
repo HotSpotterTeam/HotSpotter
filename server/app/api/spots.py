@@ -28,7 +28,9 @@ async def list_spots(
         min_lat: float | None = Query(None),
         max_lat: float | None = Query(None),
         min_lng: float | None = Query(None),
-        max_lng: float | None = Query(None)
+        max_lng: float | None = Query(None),
+        page: int = Query(1, ge=1),
+        limit: int = Query(50, ge=1, le=100)
 ):
     """
     Get all spots.
@@ -83,12 +85,14 @@ async def list_spots(
         else:
             # Default: Newest first
             query = query.order_by(Spot.id.desc())
-
-        spots = query.all()
+        # 4. Pagination
+        total_count = query.count()
+        offset = (page - 1) * limit
+        spots = query.offset(offset).limit(limit).all()
         # Return list matching SpotsResponse model
         return {
             "spots": [spot.to_api_model() for spot in spots],
-            "total": len(spots)
+            "total": total_count
         }
 
 
@@ -165,6 +169,8 @@ async def create_spot(
 
 
 # --- 4. UPDATE SPOT (Owner/Admin) ---
+# In server/app/api/spots.py
+
 @router.put("/{id}", status_code=status.HTTP_200_OK, response_model=SpotResponse)
 async def update_spot(
         spot_update: UpdateSpot,
@@ -187,10 +193,11 @@ async def update_spot(
         # 1. Extract update data
         update_data = spot_update.model_dump(exclude_unset=True)
 
-        # 2. Handle Location update separately
+        # 2. Handle Location update with SRID FIX
         if "location" in update_data:
             coords = update_data.pop("location")
-            spot.location = WKTElement(f"POINT({coords[0]} {coords[1]})")
+            # PostGIS requires POINT(lng lat) and we MUST specify srid=4326
+            spot.location = WKTElement(f"POINT({coords[0]} {coords[1]})", srid=4326)
 
         # 3. Update remaining text fields automatically
         for key, value in update_data.items():

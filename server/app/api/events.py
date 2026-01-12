@@ -30,7 +30,9 @@ async def list_events(
         min_lat: float | None = Query(None, description="Minimum latitude for bounding box"),
         max_lat: float | None = Query(None, description="Maximum latitude for bounding box"),
         min_lng: float | None = Query(None, description="Minimum longitude for bounding box"),
-        max_lng: float | None = Query(None, description="Maximum longitude for bounding box")
+        max_lng: float | None = Query(None, description="Maximum longitude for bounding box"),
+        page: int = Query(1, ge=1),
+        limit: int = Query(50, ge=1, le=100)
 ) -> EventsResponse:
     """
     Get all events.
@@ -86,10 +88,16 @@ async def list_events(
             query = query.outerjoin(Report).group_by(Event.id).order_by(func.count(Report.id).desc())
         else:
             query = query.order_by(Event.id.desc())
+        # 5. Pagination
+        total_count = query.count()
+        offset = (page - 1) * limit
+        events = query.offset(offset).limit(limit).all()
 
-        events = query.all()
-        return EventsResponse(status="success", data=[event.to_api_model() for event in events])
-
+        return EventsResponse(
+            status="success", 
+            data=[event.to_api_model() for event in events],
+            total=total_count
+        )
 
 @router.get("/{id}", status_code=status.HTTP_200_OK)
 async def get_event(id: int = Path(...)) -> EventResponse:
@@ -224,22 +232,37 @@ async def update_event(
         
         update_data = event_update.model_dump(exclude_unset=True)
 
-        # Handle start_time/end_time conversion if they are in the update data
+        # Handle Custom Location with SRID
+        if "custom_location" in update_data:
+            loc = update_data.pop("custom_location")
+            if loc and len(loc) == 2:
+                # Frontend sends [lng, lat] for custom_location (GeoJSON style)
+                event.location = WKTElement(f"POINT({loc[0]} {loc[1]})", srid=4326)
+
+        # If critical info changes and it's attached to a spot, reset to pending
+        # (Unless the user is the spot owner or admin)
+        critical_fields = ["name", "description", "start_time", "end_time", "category"]
+        is_critical_change = any(field in update_data for field in critical_fields)
+        
+        if is_critical_change and event.spot_id:
+            # Check if current user owns the spot
+            spot = session.query(Spot).filter(Spot.id == event.spot_id).first()
+            if spot and spot.owner_id != current_user.id:
+                event.status = "pending"
+
+        # Handle start_time/end_time conversion
         if "start_time" in update_data and isinstance(update_data["start_time"], str):
             update_data["start_time"] = datetime.fromisoformat(update_data["start_time"])
         if "end_time" in update_data and isinstance(update_data["end_time"], str):
             update_data["end_time"] = datetime.fromisoformat(update_data["end_time"])
 
-        # Validate time ordering if both are being updated
+        # Validate time ordering
         start = update_data.get("start_time", event.start_time)
         end = update_data.get("end_time", event.end_time)
         if end <= start:
-            raise HTTPException(
-                status_code=400,
-                detail="end_time must be after start_time"
-            )
+            raise HTTPException(status_code=400, detail="end_time must be after start_time")
 
-        # Apply updates
+        # Apply remaining updates
         for key, value in update_data.items():
             setattr(event, key, value)
 

@@ -25,8 +25,7 @@ export default function MapEvents() {
   );
   const dispatch = useDispatch();
   const hasCenteredRef = useRef(false);
-  const updateTimeoutRef = useRef<NodeJS.Timeout>();
-
+  const updateTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const updateBounds = useCallback(() => {
     const bounds = map.getBounds();
     const zoom = map.getZoom();
@@ -99,14 +98,14 @@ export default function MapEvents() {
   });
 
   // Request user's location when component mounts
-  useEffect(() => {
+  /* useEffect(() => {
     map.locate({
       enableHighAccuracy: true,
       watch: false, // Set to true if you want continuous updates
       timeout: 10000,
       maximumAge: 0,
     });
-  }, []);
+  }, []);*/
 
   return null;
 }

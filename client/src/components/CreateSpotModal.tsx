@@ -14,6 +14,12 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import SpotCreatedSuccess from "./SpotCreatedSuccess";
 
+interface CreateSpotModalProps {
+  initialData?: any;
+  isOpen?: boolean;
+  onCloseOverride?: () => void;
+}
+
 function getLocationString(location: Location | null, value: string): string {
   return location ? `${location.lat}, ${location.lng}` : value;
 }
@@ -27,10 +33,9 @@ const validationSchema = Yup.object({
   description: Yup.string().trim(),
 });
 
-export default function CreateSpotModal() {
-  const showCreateSpot = useSelector(
-    (state: RootState) => state.app.showCreateSpot
-  );
+export default function CreateSpotModal({ initialData, isOpen, onCloseOverride }: CreateSpotModalProps) {
+  const showCreateSpotRedux = useSelector((state: RootState) => state.app.showCreateSpot);
+  const showCreateSpot = isOpen !== undefined ? isOpen : showCreateSpotRedux;
   const dispatch = useDispatch();
   const createSpotLocation = useSelector(
     (state: RootState) => state.app.createSpotLocation
@@ -39,6 +44,26 @@ export default function CreateSpotModal() {
   const { token } = useAppSelector((state) => state.auth);
   const [locationError, setLocationError] = React.useState<string>("");
   const [showSuccess, setShowSuccess] = React.useState(false);
+
+  React.useEffect(() => {
+    if (initialData && showCreateSpot) {
+      formik.setValues({
+        name: initialData.name,
+        description: initialData.description || "",
+        category: initialData.category,
+      });
+      // If location exists, put it in Redux so the input field sees it
+      if (initialData.location) {
+        // Handle GeoJSON format (usually [lng, lat] from DB) vs your Redux format {lat, lng}
+        const isArray = Array.isArray(initialData.location);
+        // GeoJSON is [lng, lat], Leaflet is [lat, lng]. 
+        const lat = isArray ? initialData.location[1] : initialData.location.lat;
+        const lng = isArray ? initialData.location[0] : initialData.location.lng;
+        
+        dispatch(setCreateSpotLocation({ lat, lng }));
+      }
+    }
+  }, [initialData, showCreateSpot]);
 
   const createSpotMutation = useMutation({
     mutationFn: async (data: {
@@ -52,8 +77,12 @@ export default function CreateSpotModal() {
       const API_URL =
         import.meta.env.VITE_API_URL?.replace(/\/$/, "") ||
         "http://127.0.0.1:8000";
-      const response = await fetch(`${API_URL}/api/spots/`, {
-        method: "POST",
+      const url = initialData 
+        ? `${API_URL}/api/spots/${initialData.id}` // Edit URL
+        : `${API_URL}/api/spots/`;                 // Create URL
+      const method = initialData ? "PUT" : "POST";
+      const response = await fetch(url, { 
+        method: method,
         headers: {
           "Content-Type": "application/json",
           ...(token && { Authorization: `Bearer ${token}` }),
@@ -106,8 +135,12 @@ export default function CreateSpotModal() {
   });
 
   const onClose = () => {
-    dispatch(setShowCreateSpot(false));
-    dispatch(setOnChooseLocation(false));
+    if (onCloseOverride) {
+      onCloseOverride();
+    } else {
+      dispatch(setShowCreateSpot(false));
+      dispatch(setOnChooseLocation(false));
+    }
     formik.resetForm();
     dispatch(setCreateSpotLocation(null));
     setLocationError("");
@@ -124,12 +157,32 @@ export default function CreateSpotModal() {
     <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
       <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-md">
         {showSuccess ? (
-          <SpotCreatedSuccess onClose={onClose} />
+         initialData ? (
+             <div className="text-center py-8">
+                <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  {/* Reuse CheckCircle icon from lucide-react if imported, or just use text */}
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Spot Updated!</h3>
+                <p className="text-gray-600 mb-6">
+                   Your changes have been saved. 
+                   It may need to be re-approved by an admin.
+                </p>
+                <button 
+                  onClick={onClose}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium"
+                >
+                  Close
+                </button>
+             </div>
+          ) : (
+             <SpotCreatedSuccess onClose={onClose} />
+          )
         ) : (
           // Form
           <>
             <h2 className="text-xl font-bold text-gray-800 mb-4">
-              Create New Spot
+              {initialData ? "Edit Spot" : "Create New Spot"}
             </h2>
 
         {(createSpotMutation.isError || locationError) && (
@@ -279,7 +332,7 @@ export default function CreateSpotModal() {
               disabled={createSpotMutation.isPending}
               className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {createSpotMutation.isPending ? "Creating..." : "Create Spot"}
+              {createSpotMutation.isPending ? "Saving..." : (initialData ? "Save Changes" : "Create Spot")}
             </button>
           </div>
         </form>

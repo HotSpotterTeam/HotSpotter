@@ -83,7 +83,7 @@ class CreateReport(BaseModel):
 class EventsResponse(BaseModel):
     status: str
     data: List[Event]
-
+    total: int = 0
 
 class EventResponse(BaseModel):
     status: str
@@ -169,3 +169,8 @@ class UpdateReport(BaseModel):
     description: Optional[str] = None
     picture: Optional[str] = None
     # We do not allow changing which event/spot the report is attached to.
+
+class UsersResponse(BaseModel):
+    status: str
+    data: List[UserResponse]
+    total: int

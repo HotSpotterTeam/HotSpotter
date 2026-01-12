@@ -11,7 +11,7 @@ import { Navigation, AlertCircle } from "lucide-react";
 import { useAppSelector } from "../store/hooks";
 import { RootState } from "../state/store";
 import MapEvents from "./MapEvents";
-import { useSpots } from "../queries";
+import { useSpots, useEvents } from "../queries";
 import { TEL_AVIV_DEFAULT } from "../constants";
 import { categoryIcons, categoryColors, createCustomIcon } from "../icons";
 import { useSelector } from "react-redux";
@@ -154,6 +154,7 @@ export default function MapView({
 
   // Fetch spots based on current map bounds
   const { spots, total, isPending: spotsLoading, fetchCheck } = useSpots();
+  useEvents();
   
   // Custom icons for different marker types
   const spotIcon = new L.Icon({
@@ -307,10 +308,10 @@ export default function MapView({
         </div>
       )}
 
-      {/* Spots count indicator */}
-      {fetchCheck.shouldFetch && spots && spots.length > 0 && !spotsLoading && (
+      {/* Spots & Events count indicator */}
+      {fetchCheck.shouldFetch && !spotsLoading && ((spots && spots.length > 0) || (events && events.length > 0)) && (
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-lg shadow-md z-50 text-sm text-gray-700 font-medium">
-          {spots.length} spot{spots.length !== 1 ? 's' : ''} visible
+          {spots?.length || 0} spot{spots?.length !== 1 ? 's' : ''}, {events?.length || 0} event{events?.length !== 1 ? 's' : ''} visible
         </div>
       )}
     </div>

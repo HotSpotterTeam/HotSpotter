@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.db import get_session
 from app.models import User, Spot, Event, Report
 from app.api.auth_utils import get_current_user
-from app.api.api_models import UserResponse
+from app.api.api_models import UserResponse, UsersResponse
 from typing import List, Optional, Dict, Any
 from app.hs_logging import log_user_action, get_request_session_id
 from app.event_status_updater import (
@@ -30,7 +30,7 @@ def get_current_admin(current_user: User = Depends(get_current_user)):
 
 
 # --- 1. LIST USERS ---
-@router.get("/users", status_code=status.HTTP_200_OK, response_model=List[UserResponse])
+@router.get("/users", status_code=status.HTTP_200_OK, response_model=UsersResponse)
 async def list_users(
         id: Optional[int] = Query(None),
         name: Optional[str] = Query(None),
@@ -39,6 +39,8 @@ async def list_users(
         google_id: Optional[str] = Query(None),
         is_admin: Optional[bool] = Query(None),
         search: Optional[str] = Query(None),
+        page: int = Query(1, ge=1),
+        limit: int = Query(50, ge=1, le=100),
         current_user: User = Depends(get_current_admin)
 ):
     """
@@ -76,7 +78,15 @@ async def list_users(
         if is_admin is not None:
             query = query.filter(User.is_admin == is_admin)
 
-        return query.all()
+        total_count = query.count()
+        offset = (page - 1) * limit
+        users = query.offset(offset).limit(limit).all()
+
+        return {
+            "status": "success",
+            "data": users,
+            "total": total_count
+        }
 
 
 # --- 2. GET SINGLE USER ---

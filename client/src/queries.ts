@@ -11,24 +11,45 @@ const API_URL =
 
 export function useEvents() {
   const dispatch = useDispatch();
+  // 1. Listen to map bounds (Just like useSpots)
+  const mapBounds = useAppSelector((state: RootState) => state.app.mapBounds);
+
+  // 2. Add bounds to the cache key so it refetches when map moves
+  const queryKey = mapBounds
+    ? ["events", mapBounds.minLat, mapBounds.maxLat, mapBounds.minLng, mapBounds.maxLng]
+    : ["events"];
+
   const { isPending, error, data } = useQuery({
-    queryKey: ["events"],
+    queryKey,
     queryFn: async () => {
-      const response = await fetch(`${API_URL}/api/events`);
+      let url = `${API_URL}/api/events/`;
+
+      // 3. Append Bounding Box params if they exist
+      if (mapBounds) {
+        const params = new URLSearchParams({
+          min_lat: mapBounds.minLat.toString(),
+          max_lat: mapBounds.maxLat.toString(),
+          min_lng: mapBounds.minLng.toString(),
+          max_lng: mapBounds.maxLng.toString(),
+          status: 'all'
+        });
+        url += `?${params.toString()}`;
+      }
+
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch events: ${response.statusText}`);
       }
       const json = await response.json();
-      console.log("Events API response:", json);
       return json;
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 5, 
+    enabled: true, // You can add mapBounds !== null if you want to wait for map load
   });
 
   useEffect(() => {
     if (data) {
-      console.log("Dispatching events to store:", data);
-      // Handle both response formats: { data: Event[] } or Event[] directly
+      // Handle response format
       const events = Array.isArray(data) ? data : (data.data || []);
       dispatch(setEvents(events as Event[]));
     }

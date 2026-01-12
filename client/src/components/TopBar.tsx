@@ -39,7 +39,7 @@ const TopBar = () => {
         <h1 className="text-2xl font-bold text-gray-800">HotSpotter</h1>
       </div>
 
-      {isAuthenticated && (
+      {isAuthenticated && !showAdminDashboard && !showUserProfile && (
         <div className="absolute left-80 ml-4 flex items-center gap-3">
           <button
             onClick={() => dispatch(setShowCreateEvent(true))}

@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { useAppSelector } from "../store/hooks";
 import { Event, Spot, Report } from "../generated-types";
+import CreateSpotModal from "./CreateSpotModal";
+import CreateEventModal from "./CreateEventModal";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -25,7 +27,17 @@ const UserProfilePage = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-
+  const [page, setPage] = useState(1);
+  const LIMIT = 30;
+  const [totals, setTotals] = useState({
+    spots: 0,
+    events: 0,
+    reports: 0,
+    favorites: 0,
+    subscriptions: 0
+  });
+  const [editingSpot, setEditingSpot] = useState<Spot | null>(null);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [mySpots, setMySpots] = useState<Spot[]>([]);
   const [myEvents, setMyEvents] = useState<Event[]>([]);
   const [myReports, setMyReports] = useState<Report[]>([]);
@@ -110,32 +122,31 @@ const UserProfilePage = () => {
     }
   };
 
-  const loadMySpots = async () => {
+  const loadMySpots = async (pageNum = 1) => {
     if (!user) return;
     try {
-      const data: any = await authFetch(`/api/spots/?owner_id=${user.id}`);
-      const sortedSpots = (data.spots || []).sort((a: Spot, b: Spot) => {
-        if (a.is_approved === b.is_approved) return 0;
-        return a.is_approved ? 1 : -1;
-      });
-      setMySpots(sortedSpots);
+      const data: any = await authFetch(
+        `/api/spots/?owner_id=${user.id}&page=${pageNum}&limit=${LIMIT}`
+      );
+      setMySpots(data.spots || []);
+      setTotals(prev => ({ ...prev, spots: data.total || 0 }));
     } catch (err) {
       console.error("Failed to load spots:", err);
     }
   };
 
-  const loadMyEvents = async () => {
+  const loadMyEvents = async (pageNum = 1) => {
     if (!user) return;
     try {
-      const data: any = await authFetch(`/api/events/?owner_id=${user.id}&status=all`);
+      const data: any = await authFetch(`/api/events/?owner_id=${user.id}&status=all&page=${pageNum}&limit=${LIMIT}`);
       const events = data.data || [];
       setMyEvents(events);
-
+      setTotals(prev => ({ ...prev, events: data.total || 0 }));
       const spotIds = events
         .filter((event: Event) => event.spot_id)
         .map((event: Event) => event.spot_id as number);
 
-      const uniqueSpotIds = [...new Set(spotIds)];
+      const uniqueSpotIds = [...new Set(spotIds)] as number[];
 
       await Promise.all(
         uniqueSpotIds.map(async (spotId) => {
@@ -149,10 +160,10 @@ const UserProfilePage = () => {
     }
   };
 
-  const loadMyReports = async () => {
+  const loadMyReports = async (pageNum = 1) => {
     if (!user) return;
     try {
-      const data: any = await authFetch(`/api/reports/`);
+      const data: any = await authFetch(`/api/reports/?page=${pageNum}&limit=${LIMIT}`);
       const userReports = (data.data || []).filter((r: Report) => r.user_id === user.id);
       setMyReports(userReports);
 
@@ -163,8 +174,8 @@ const UserProfilePage = () => {
         .filter((report: Report) => report.event_id)
         .map((report: Report) => report.event_id as number);
 
-      const uniqueSpotIds = [...new Set(spotIds)];
-      const uniqueEventIds = [...new Set(eventIds)];
+      const uniqueSpotIds = [...new Set(spotIds)] as number[];
+      const uniqueEventIds = [...new Set(eventIds)] as number[];
 
       await Promise.all([
         ...uniqueSpotIds.map(async (spotId) => {
@@ -183,28 +194,29 @@ const UserProfilePage = () => {
     }
   };
 
-  const loadFavoriteSpots = async () => {
+  const loadFavoriteSpots = async (pageNum = 1) => {
     if (!user) return;
     try {
-      const data: any = await authFetch(`/api/favorites/spots`);
+      const data: any = await authFetch(`/api/favorites/spots?page=${pageNum}&limit=${LIMIT}`);
       setFavoriteSpots(data.data || []);
+      setTotals(prev => ({ ...prev, favorites: data.total || (data.data?.length || 0) }));
     } catch (err) {
       console.error("Failed to load favorite spots:", err);
     }
   };
 
-  const loadSubscribedEvents = async () => {
+  const loadSubscribedEvents = async (pageNum = 1) => {
     if (!user) return;
     try {
-      const data: any = await authFetch(`/api/subscriptions/events`);
+      const data: any = await authFetch(`/api/subscriptions/events?page=${pageNum}&limit=${LIMIT}`);
       const events = data.data || [];
       setSubscribedEvents(events);
-
+      setTotals(prev => ({ ...prev, subscriptions: data.total || (data.data?.length || 0) }));
       const spotIds = events
         .filter((event: Event) => event.spot_id)
         .map((event: Event) => event.spot_id as number);
 
-      const uniqueSpotIds = [...new Set(spotIds)];
+      const uniqueSpotIds = [...new Set(spotIds)] as number[];
 
       await Promise.all(
         uniqueSpotIds.map(async (spotId) => {
@@ -238,7 +250,7 @@ const UserProfilePage = () => {
         .filter((event: Event) => event.spot_id)
         .map((event: Event) => event.spot_id as number);
 
-      const uniqueSpotIds = [...new Set(spotIds)];
+      const uniqueSpotIds = [...new Set(spotIds)] as number[];
 
       await Promise.all(
         uniqueSpotIds.map(async (spotId) => {
@@ -262,24 +274,36 @@ const UserProfilePage = () => {
     }
   };
 
+  // Initial Load (Mount): Load page 1 of EVERYTHING to populate tab counts
   useEffect(() => {
     if (!user) return;
-
-    // Load all data when component mounts
-    const loadAllData = async () => {
+    const init = async () => {
       setInitialLoading(true);
       await Promise.all([
-        loadMySpots(),
-        loadMyEvents(),
-        loadMyReports(),
-        loadFavoriteSpots(),
-        loadSubscribedEvents()
+        loadMySpots(1),
+        loadMyEvents(1),
+        loadMyReports(1),
+        loadFavoriteSpots(1),
+        loadSubscribedEvents(1)
       ]);
       setInitialLoading(false);
     };
-
-    loadAllData();
+    init();
   }, [user]);
+
+  // Tab or Page Change: Load specific data
+  useEffect(() => {
+    if (!user || initialLoading) return; // Skip if still initializing
+
+    if (activeTab === "spots") loadMySpots(page);
+    if (activeTab === "events") loadMyEvents(page);
+    if (activeTab === "reports") loadMyReports(page);
+    if (activeTab === "favorites") loadFavoriteSpots(page);
+    if (activeTab === "subscriptions") loadSubscribedEvents(page);
+    
+    // Reset search on tab change
+    setSearchTerm("");
+  }, [activeTab, page]);
 
   // Load pending events when spots are loaded
   useEffect(() => {
@@ -291,6 +315,7 @@ const UserProfilePage = () => {
   // Clear search when switching tabs
   useEffect(() => {
     setSearchTerm("");
+    setPage(1);
   }, [activeTab]);
 
   const filterItems = <T extends Spot | Event | Report>(items: T[]): T[] => {
@@ -390,6 +415,41 @@ const UserProfilePage = () => {
   const filteredFavorites = filterItems(favoriteSpots);
   const filteredSubscriptions = filterItems(subscribedEvents);
 
+  const Pagination = () => {
+    // Determine which total to use based on active tab
+    let currentTotal = 0;
+    if (activeTab === "spots") currentTotal = totals.spots;
+    if (activeTab === "events") currentTotal = totals.events;
+    if (activeTab === "reports") currentTotal = totals.reports;
+    if (activeTab === "favorites") currentTotal = totals.favorites;
+    if (activeTab === "subscriptions") currentTotal = totals.subscriptions;
+
+    const totalPages = Math.ceil(currentTotal / LIMIT);
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className="flex items-center justify-center gap-4 py-6 mt-4">
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page === 1 || loading}
+          className="px-4 py-2 text-sm border rounded-lg hover:bg-white bg-white shadow-sm disabled:opacity-50"
+        >
+          Previous
+        </button>
+        <span className="text-sm text-gray-600">
+          Page {page} of {totalPages}
+        </span>
+        <button
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          disabled={page >= totalPages || loading}
+          className="px-4 py-2 text-sm border rounded-lg hover:bg-white bg-white shadow-sm disabled:opacity-50"
+        >
+          Next
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="bg-white shadow-sm border-b">
@@ -420,11 +480,11 @@ const UserProfilePage = () => {
       </div>
 
       <div className="bg-white px-8 flex gap-4 overflow-x-auto border-b max-w-6xl mx-auto w-full">
-        <TabButton id="spots" label="My Spots" icon={MapPin} count={mySpots.length} />
-        <TabButton id="events" label="My Events" icon={Calendar} count={myEvents.length} />
-        <TabButton id="reports" label="My Reports" icon={Flag} count={myReports.length} />
-        <TabButton id="favorites" label="Saved Spots" icon={MapPin} count={favoriteSpots.length} />
-        <TabButton id="subscriptions" label="Joined Events" icon={Calendar} count={subscribedEvents.length} />
+        <TabButton id="spots" label="My Spots" icon={MapPin} count={totals.spots} />
+        <TabButton id="events" label="My Events" icon={Calendar} count={totals.events} />
+        <TabButton id="reports" label="My Reports" icon={Flag} count={totals.reports} />
+        <TabButton id="favorites" label="Saved Spots" icon={MapPin} count={totals.favorites} />
+        <TabButton id="subscriptions" label="Joined Events" icon={Calendar} count={totals.subscriptions} />
       </div>
 
       <div className="flex-1 p-8 max-w-6xl mx-auto w-full">
@@ -498,6 +558,13 @@ const UserProfilePage = () => {
                     </div>
                     <div className="flex gap-2">
                       <button
+                        onClick={() => setEditingSpot(spot)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        title="Edit Spot"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button
                         onClick={() => handleDeleteSpot(spot.id)}
                         className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
                         title="Delete Spot"
@@ -509,6 +576,7 @@ const UserProfilePage = () => {
                 </div>
               ))
             )}
+            <Pagination />
           </div>
         )}
 
@@ -561,6 +629,7 @@ const UserProfilePage = () => {
                     </div>
                   ))}
                 </div>
+                <Pagination />
               </div>
             )}
 
@@ -631,6 +700,13 @@ const UserProfilePage = () => {
                     </div>
                     <div className="flex gap-2">
                       <button
+                        onClick={() => setEditingEvent(event)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        title="Edit Event"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button
                         onClick={() => handleDeleteEvent(event.id)}
                         className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
                         title="Delete Event"
@@ -643,6 +719,7 @@ const UserProfilePage = () => {
               ))
             )}
             </div>
+            <Pagination />
           </div>
         )}
 
@@ -719,6 +796,7 @@ const UserProfilePage = () => {
                 </div>
               ))
             )}
+            <Pagination />
           </div>
         )}
 
@@ -768,6 +846,7 @@ const UserProfilePage = () => {
                 </div>
               ))
             )}
+            <Pagination />
           </div>
         )}
 
@@ -842,6 +921,21 @@ const UserProfilePage = () => {
           </div>
         )}
       </div>
+      {editingSpot && (
+        <CreateSpotModal
+          initialData={editingSpot}
+          isOpen={true}
+          onCloseOverride={() => setEditingSpot(null)}
+        />
+      )}
+
+      {editingEvent && (
+        <CreateEventModal
+          initialData={editingEvent}
+          isOpen={true}
+          onCloseOverride={() => setEditingEvent(null)}
+        />
+      )}
     </div>
   );
 };

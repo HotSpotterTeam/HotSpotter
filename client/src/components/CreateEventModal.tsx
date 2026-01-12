@@ -13,6 +13,12 @@ import { useAppSelector } from "../store/hooks";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 
+interface CreateEventModalProps {
+  initialData?: any;
+  isOpen?: boolean;
+  onCloseOverride?: () => void;
+}
+
 function getLocationString(location: Location | null, value: string): string {
   return location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : value;
 }
@@ -34,10 +40,9 @@ const validationSchema = Yup.object({
     }),
 });
 
-export default function CreateEventModal() {
-  const showCreateEvent = useSelector(
-    (state: RootState) => state.app.showCreateEvent
-  );
+export default function CreateEventModal({ initialData, isOpen, onCloseOverride }: CreateEventModalProps) {
+  const showCreateEventRedux = useSelector((state: RootState) => state.app.showCreateEvent);
+  const showCreateEvent = isOpen !== undefined ? isOpen : showCreateEventRedux;
   const dispatch = useDispatch();
   const createEventLocation = useSelector(
     (state: RootState) => state.app.createEventLocation
@@ -80,6 +85,34 @@ export default function CreateEventModal() {
   // Get selected spot details
   const selectedSpot = spots.find((spot: any) => spot.id === selectedSpotId);
 
+  useEffect(() => {
+    if (initialData && showCreateEvent) {
+      // 1. Format Dates
+      const formatTime = (isoString: string) => 
+        isoString ? new Date(isoString).toISOString().slice(0, 16) : "";
+
+      formik.setValues({
+        name: initialData.name,
+        description: initialData.description || "",
+        category: initialData.category,
+        startTime: formatTime(initialData.start_time),
+        endTime: formatTime(initialData.end_time),
+      });
+
+      // 2. Handle Location Type
+      if (initialData.spot_id) {
+        setLocationType("spot");
+        setSelectedSpotId(initialData.spot_id);
+        // maybe fetch the spot name here to show it in the UI
+      } else if (initialData.location) {
+        setLocationType("custom");
+        const lat = Array.isArray(initialData.location) ? initialData.location[1] : initialData.location.lat;
+        const lng = Array.isArray(initialData.location) ? initialData.location[0] : initialData.location.lng;
+        dispatch(setCreateEventLocation({ lat, lng }));
+      }
+    }
+  }, [initialData, showCreateEvent]);
+
   const createEventMutation = useMutation({
     mutationFn: async (data: {
       name: string;
@@ -90,8 +123,12 @@ export default function CreateEventModal() {
       spot_id?: number;
       custom_location?: [number, number];
     }) => {
-      const response = await fetch(`${API_URL}/api/events/`, {
-        method: "POST",
+      const url = initialData 
+        ? `${API_URL}/api/events/${initialData.id}` 
+        : `${API_URL}/api/events/`;
+      const method = initialData ? "PUT" : "POST";
+      const response = await fetch(url, {
+        method: method,
         headers: {
           "Content-Type": "application/json",
           ...(token && { Authorization: `Bearer ${token}` }),
@@ -166,8 +203,12 @@ export default function CreateEventModal() {
   });
 
   const onClose = () => {
-    dispatch(setShowCreateEvent(false));
-    dispatch(setOnChooseEventLocation(false));
+    if (onCloseOverride) {
+      onCloseOverride();
+    } else {
+      dispatch(setShowCreateEvent(false));
+      dispatch(setOnChooseEventLocation(false));
+    }
     formik.resetForm();
     dispatch(setCreateEventLocation(null));
     setLocationError("");
@@ -241,7 +282,7 @@ export default function CreateEventModal() {
             <h3 className="text-xl font-bold text-gray-800 mb-2">
                 {createdEvent?.status === "pending" && "Event Awaiting Approval"}
                 {createdEvent?.status === "pending-start" && "Event Scheduled"}
-                {createdEvent?.status === "active" && "Event Created!"}
+                {createdEvent?.status === "active" && (initialData ? "Event Updated!" : "Event Created!")}
             </h3>
             <p className="text-gray-600 mb-6">
                 {status === "pending" &&
@@ -262,7 +303,9 @@ export default function CreateEventModal() {
           </div>
         ) : (
           <>
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Create New Event</h2>
+            <h2 className="text-xl font-bold text-gray-800 mb-4">
+              {initialData ? "Edit Event" : "Create New Event"}
+            </h2>
 
             {(createEventMutation.isError || locationError) && (
               <div className="mb-4 p-3 bg-red-100 border border-red-400 rounded-lg">
@@ -543,7 +586,7 @@ export default function CreateEventModal() {
                   disabled={createEventMutation.isPending}
                   className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {createEventMutation.isPending ? "Creating..." : "Create Event"}
+                  {createEventMutation.isPending ? "Saving..." : (initialData ? "Save Changes" : "Create Event")}
                 </button>
               </div>
             </form>

@@ -27,13 +27,16 @@ export const getStats = async (token: string | null) => {
 };
 
 // 2. Users
-export const getUsers = async (token: string | null, search: string, onlyAdmins: boolean) => {
-  let url = "/api/admin/users?";
+export const getUsers = async (token: string | null, search: string, onlyAdmins: boolean, page = 1, limit = 50) => {
+  let url = `/api/admin/users?page=${page}&limit=${limit}&`;
   if (search) url += `search=${search}&`;
   if (onlyAdmins) url += `is_admin=true&`;
   
-  // The backend returns a list directly for this endpoint
-  return authFetch<User[]>(token, url); 
+  const res: any = await authFetch(token, url);
+  // Backend needs to return { data: [...], total: ... }
+  // If backend returns array directly, total is length (no pagination support on backend yet)
+  if (Array.isArray(res)) return { data: res, total: res.length };
+  return { data: res.data || res, total: res.total || 0 };
 };
 
 export const deleteUser = async (token: string | null, id: number) => {
@@ -45,15 +48,14 @@ export const toggleUserRole = async (token: string | null, id: number) => {
 };
 
 // 3. Spots
-export const getSpots = async (token: string | null, search: string, filter: "all" | "approved" | "pending") => {
-  let url = "/api/spots/?";
+export const getSpots = async (token: string | null, search: string, filter: "all" | "approved" | "pending", page = 1, limit = 50) => {
+  let url = `/api/spots/?page=${page}&limit=${limit}&`;
   if (search) url += `search=${search}&`;
   if (filter === "approved") url += `is_approved=true&`;
   if (filter === "pending") url += `is_approved=false&`;
   
   const res: any = await authFetch(token, url);
-  // API returns { spots: [...], total: ... }
-  return res.spots as Spot[];
+  return { data: res.spots, total: res.total };
 };
 
 export const deleteSpot = async (token: string | null, id: number) => {
@@ -65,13 +67,13 @@ export const approveSpot = async (token: string | null, id: number) => {
 };
 
 // 4. Events
-export const getEvents = async (token: string | null, search: string, filter: "all" | "active" | "pending") => {
-  let url = "/api/events/?";
+export const getEvents = async (token: string | null, search: string, filter: "all" | "active" | "pending", page = 1, limit = 50) => {
+  let url = `/api/events/?page=${page}&limit=${limit}&`;
   if (search) url += `search=${search}&`;
   url += `status=${filter}&`; 
   
   const res: any = await authFetch(token, url);
-  return res.data as Event[];
+  return { data: res.data, total: res.total || res.data.length };
 };
 
 export const deleteEvent = async (token: string | null, id: number) => {
@@ -79,9 +81,9 @@ export const deleteEvent = async (token: string | null, id: number) => {
 };
 
 // 5. Reports
-export const getReports = async (token: string | null) => {
-  const res: any = await authFetch(token, "/api/reports/?is_flagged=true");
-  return res.data as Report[];
+export const getReports = async (token: string | null, page = 1, limit = 50) => {
+  const res: any = await authFetch(token, `/api/reports/?is_flagged=true&page=${page}&limit=${limit}`);
+  return { data: res.data, total: res.total || res.data.length };
 };
 
 export const dismissReport = async (token: string | null, id: number) => {

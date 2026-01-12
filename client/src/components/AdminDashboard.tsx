@@ -12,7 +12,10 @@ import * as AdminApi from "../api/adminApi";
 const AdminDashboard = () => {
   const { token } = useAppSelector((state) => state.auth);
   const [activeTab, setActiveTab] = useState<"overview" | "users" | "spots" | "events" | "reports">("overview");
-  
+  // --- PAGINATION STATE ---
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const LIMIT = 30;
   // Data States
   const [stats, setStats] = useState<StatData | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -27,37 +30,87 @@ const AdminDashboard = () => {
   const [spotFilter, setSpotFilter] = useState<"all" | "approved" | "pending">("all");
   const [eventFilter, setEventFilter] = useState<"all" | "active" | "pending">("all");
 
+  const categoryEmojis: { [key: string]: string } = {
+    party: "🎉",
+    restaurant: "🍔",
+    sports: "⚽",
+    sports_centre: "🏋️",
+    music: "🎵",
+    art: "🎨",
+    tech: "💻",
+    nature: "🌳",
+    cafe: "☕",
+    community_centre: "🏛️",
+    beach: "🏖️",
+    theatre: "🎭",
+    museum: "🏛️",
+    art_gallery: "🖼️",
+    cinema: "🎬",
+    stadium: "🏟️",
+    attraction: "🎡",
+    shopping: "🛍️",
+    social: "🗣️",
+    gathering: "🤝",
+    gallery: "🖼️",
+    bar: "🍸",
+    conference_centre: "🏢",
+    arts_centre: "🎨",
+    house: "🏠",
+    other: "📂",
+    default: "📂" // Fallback for unknown categories
+  };
+
   // --- Load Data Helpers ---
   const loadStats = () => AdminApi.getStats(token).then(setStats).catch(console.error);
   
-  const loadUsers = () => {
+ const loadUsers = () => {
     setLoading(true);
-    AdminApi.getUsers(token, searchTerm, onlyAdmins)
-      .then(setUsers)
+    // Pass page and LIMIT to the API
+    AdminApi.getUsers(token, searchTerm, onlyAdmins, page, LIMIT)
+      .then((res: any) => {
+        // Handle response format (support both array and {data, total} object)
+        if (res.data && Array.isArray(res.data)) {
+          setUsers(res.data);
+          setTotalCount(res.total || 0);
+        } else if (Array.isArray(res)) {
+           // Fallback for old backend
+          setUsers(res);
+          setTotalCount(res.length);
+        }
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   };
 
   const loadSpots = () => {
     setLoading(true);
-    AdminApi.getSpots(token, searchTerm, spotFilter)
-      .then(setSpots)
+    AdminApi.getSpots(token, searchTerm, spotFilter, page, LIMIT)
+      .then((res: any) => {
+        setSpots(res.data);
+        setTotalCount(res.total);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   };
 
   const loadEvents = () => {
     setLoading(true);
-    AdminApi.getEvents(token, searchTerm, eventFilter)
-      .then(setEvents)
+    AdminApi.getEvents(token, searchTerm, eventFilter, page, LIMIT)
+      .then((res: any) => {
+        setEvents(res.data);
+        setTotalCount(res.total);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   };
 
   const loadReports = () => {
     setLoading(true);
-    AdminApi.getReports(token)
-      .then(setReports)
+    AdminApi.getReports(token, page, LIMIT)
+      .then((res: any) => {
+        setReports(res.data);
+        setTotalCount(res.total);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   };
@@ -66,12 +119,16 @@ const AdminDashboard = () => {
   
   // 1. Tab Switching
   useEffect(() => {
+    setPage(1); // reset page when switching tabs
+    setSearchTerm(""); // Clear search on tab switch
+  }, [activeTab]);
+  useEffect(() => {
     if (activeTab === "overview") loadStats();
     if (activeTab === "users") loadUsers();
     if (activeTab === "spots") loadSpots();
     if (activeTab === "events") loadEvents();
     if (activeTab === "reports") loadReports();
-  }, [activeTab, token]);
+  }, [activeTab, token, page]);
 
   // 2. Filter Changes
   useEffect(() => { if (activeTab === "users") loadUsers(); }, [searchTerm, onlyAdmins]);
@@ -143,6 +200,33 @@ const AdminDashboard = () => {
     </button>
   );
 
+  const Pagination = () => {
+    const totalPages = Math.ceil(totalCount / LIMIT);
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className="flex items-center justify-center gap-4 p-4 border-t bg-white">
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page === 1 || loading}
+          className="px-4 py-2 text-sm border rounded hover:bg-gray-50 disabled:opacity-50"
+        >
+          Previous
+        </button>
+        <span className="text-sm text-gray-600">
+          Page {page} of {totalPages}
+        </span>
+        <button
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          disabled={page >= totalPages || loading}
+          className="px-4 py-2 text-sm border rounded hover:bg-gray-50 disabled:opacity-50"
+        >
+          Next
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
@@ -166,6 +250,7 @@ const AdminDashboard = () => {
         
         {/* TAB 1: OVERVIEW */}
         {activeTab === "overview" && stats && (
+          <div className="space-y-12">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
               <div className="flex justify-between items-start">
@@ -210,46 +295,65 @@ const AdminDashboard = () => {
               </div>
               <p className="text-sm text-gray-400 mt-2">{stats.reports.total} Total Reports</p>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                {/* Spot Categories */}
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-                    <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2">
-                    <MapPin size={20} className="text-orange-500" /> Spot Categories
-                    </h3>
-                    <div className="space-y-3">
-                    {Object.entries(stats.spots.by_category).length === 0 ? (
-                        <p className="text-gray-400 text-sm">No spots yet.</p>
-                    ) : (
-                        Object.entries(stats.spots.by_category).map(([category, count]: any) => (
-                        <div key={category} className="flex justify-between items-center border-b border-gray-50 pb-2 last:border-0">
-                            <span className="capitalize text-gray-600">{category}</span>
-                            <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-bold">{count}</span>
-                        </div>
-                        ))
-                    )}
+          </div>  
+            
+            <div className="flex flex-col lg:flex-row justify-center items-start gap-12 mt-12 w-full">
+              {/* --- SPOT CATEGORIES COLUMN --- */}
+              <div className="w-full max-w-md space-y-4">
+                <h3 className="font-bold text-gray-700 mb-4 flex items-center justify-center gap-2 text-lg">
+                  <MapPin size={24} className="text-orange-500" /> Spot Categories
+                </h3>
+                <div className="space-y-3">
+                  {Object.entries(stats.spots.by_category || {}).map(([category, count]: [string, any]) => (
+                    <div
+                      key={category}
+                      className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl" role="img" aria-label={category}>
+                          {categoryEmojis[category.toLowerCase()] || categoryEmojis.default}
+                        </span>
+                        <span className="text-gray-700 capitalize font-medium text-lg">
+                          {category}
+                        </span>
+                      </div>
+                      <span className="font-bold text-sm text-gray-800 bg-gray-100 px-3 py-1 rounded-full">
+                        {count as number}
+                      </span>
                     </div>
+                  ))}
                 </div>
+              </div>
 
-                {/* Event Categories */}
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-                    <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2">
-                    <Calendar size={20} className="text-green-500" /> Event Categories
-                    </h3>
-                    <div className="space-y-3">
-                    {Object.entries(stats.events.by_category).length === 0 ? (
-                        <p className="text-gray-400 text-sm">No events yet.</p>
-                    ) : (
-                        Object.entries(stats.events.by_category).map(([category, count]: any) => (
-                        <div key={category} className="flex justify-between items-center border-b border-gray-50 pb-2 last:border-0">
-                            <span className="capitalize text-gray-600">{category}</span>
-                            <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-bold">{count}</span>
-                        </div>
-                        ))
-                    )}
+              {/* --- EVENT CATEGORIES COLUMN --- */}
+              <div className="w-full max-w-md space-y-4">
+                <h3 className="font-bold text-gray-700 mb-4 flex items-center justify-center gap-2 text-lg">
+                  <Calendar size={24} className="text-green-500" /> Event Categories
+                </h3>
+                <div className="space-y-3">
+                  {Object.entries(stats.events.by_category || {}).map(([category, count]: [string, any]) => (
+                    <div
+                      key={category}
+                      className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl" role="img" aria-label={category}>
+                          {categoryEmojis[category.toLowerCase()] || categoryEmojis.default}
+                        </span>
+                        <span className="text-gray-700 capitalize font-medium text-lg">
+                          {category}
+                        </span>
+                      </div>
+                      <span className="font-bold text-sm text-gray-800 bg-gray-100 px-3 py-1 rounded-full">
+                        {count as number}
+                      </span>
                     </div>
+                  ))}
                 </div>
-            </div>
+              </div>
+
+            
+          </div>
           </div>
         )}
 
@@ -309,6 +413,7 @@ const AdminDashboard = () => {
                 ))}
               </tbody>
             </table>
+            <Pagination />
           </div>
         )}
 
@@ -376,6 +481,7 @@ const AdminDashboard = () => {
                 ))}
               </tbody>
             </table>
+            <Pagination />
           </div>
         )}
 
@@ -453,6 +559,7 @@ const AdminDashboard = () => {
                 ))}
               </tbody>
             </table>
+            <Pagination />
           </div>
         )}
 
@@ -490,6 +597,7 @@ const AdminDashboard = () => {
               </tbody>
             </table>
             )}
+            <Pagination />
           </div>
         )}
       </div>

@@ -27,7 +27,7 @@ const publicFetch = async <T>(endpoint: string, options: RequestInit = {}): Prom
  */
 export const searchEvents = async (query: string) => {
   // Use the same search param we implemented in the backend
-  const url = `/api/events/?search=${encodeURIComponent(query)}&status=active`;
+  const url = `/api/events/?search=${encodeURIComponent(query)}&status=all`;
   
   const res: any = await publicFetch(url);
   // Backend returns { status: "success", data: [...] }
