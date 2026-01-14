@@ -7,6 +7,18 @@ export type Location = {
   lng: number;
 };
 
+export type TimeFilter = {
+  type: "all" | "today" | "tomorrow" | "weekend" | "custom";
+  startDate?: string;
+  endDate?: string;
+};
+
+export type MapFilters = {
+  spotCategories: string[];
+  eventCategories: string[];
+  timeFilter: TimeFilter;
+};
+
 export const appSlice = createSlice({
   name: "app",
   initialState: {
@@ -26,6 +38,12 @@ export const appSlice = createSlice({
     mapBounds: null as Bounds | null,
     mapZoom: 13 as number,
     shouldFetchSpots: true as boolean,
+    showFilterPanel: false as boolean,
+    mapFilters: { 
+      spotCategories: [], 
+      eventCategories: [],
+      timeFilter: { type: "all" } 
+    } as MapFilters,
   },
   reducers: {
     setSelectedSpot: (state, action) => {
@@ -76,6 +94,12 @@ export const appSlice = createSlice({
     setShouldFetchSpots: (state, action) => {
       state.shouldFetchSpots = action.payload as boolean;
     },
+    setShowFilterPanel: (state, action) => {
+      state.showFilterPanel = action.payload as boolean;
+    },
+    setMapFilters: (state, action) => {
+      state.mapFilters = action.payload as MapFilters;
+    },
   },
 });
 
@@ -96,6 +120,8 @@ export const {
   setMapBounds,
   setMapZoom,
   setShouldFetchSpots,
+  setShowFilterPanel,
+  setMapFilters,
 } = appSlice.actions;
 
 export default appSlice.reducer;

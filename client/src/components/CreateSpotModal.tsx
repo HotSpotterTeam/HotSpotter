@@ -244,12 +244,23 @@ export default function CreateSpotModal({ initialData, isOpen, onCloseOverride }
               onBlur={formik.handleBlur}
             >
               <option value="">Select a category</option>
+              <option value="beach">Beach</option>
               <option value="restaurant">Restaurant</option>
               <option value="cafe">Cafe</option>
               <option value="bar">Bar</option>
+              <option value="park">Park</option>
+              <option value="shopping">Shopping</option>
               <option value="parking">Parking</option>
-              <option value="shop">Shop</option>
+              <option value="theatre">Theatre</option>
+              <option value="cinema">Cinema</option>
+              <option value="arts_centre">Arts Centre</option>
               <option value="community_centre">Community Centre</option>
+              <option value="conference_centre">Conference Centre</option>
+              <option value="attraction">Attraction</option>
+              <option value="stadium">Stadium</option>
+              <option value="sports_centre">Sports Centre</option>
+              <option value="museum">Museum</option>
+              <option value="gallery">Gallery</option>
               <option value="other">Other</option>
             </select>
             {formik.errors.category && formik.touched.category && (

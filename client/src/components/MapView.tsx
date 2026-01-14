@@ -7,15 +7,66 @@ import {
   useMap,
   Circle,
 } from "react-leaflet";
-import { Navigation, AlertCircle } from "lucide-react";
+import { Navigation, AlertCircle, Filter } from "lucide-react";
 import { useAppSelector } from "../store/hooks";
 import { RootState } from "../state/store";
 import MapEvents from "./MapEvents";
+import FilterPanel from "./FilterPanel";
 import { useSpots, useEvents } from "../queries";
 import { TEL_AVIV_DEFAULT } from "../constants";
 import { categoryIcons, categoryColors, createCustomIcon } from "../icons";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { setShowFilterPanel } from "../state/AppSlice";
+import type { TimeFilter } from "../state/AppSlice";
 import L from "leaflet";
+
+// Time filtering helper function
+function filterEventsByTime(events: any[], timeFilter: TimeFilter) {
+  if (timeFilter.type === "all") return events;
+
+  const now = new Date();
+  now.setHours(0, 0, 0, 0); // Start of today
+
+  return events.filter((event: any) => {
+    const eventStart = new Date(event.start_time);
+    const eventEnd = new Date(event.end_time);
+    
+    switch (timeFilter.type) {
+      case "today": {
+        const endOfToday = new Date(now);
+        endOfToday.setHours(23, 59, 59, 999);
+        return eventStart <= endOfToday && eventEnd >= now;
+      }
+      case "tomorrow": {
+        const startOfTomorrow = new Date(now);
+        startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+        const endOfTomorrow = new Date(startOfTomorrow);
+        endOfTomorrow.setHours(23, 59, 59, 999);
+        return eventStart <= endOfTomorrow && eventEnd >= startOfTomorrow;
+      }
+      case "weekend": {
+        // Find next Saturday and Sunday
+        const dayOfWeek = now.getDay();
+        const daysUntilSaturday = dayOfWeek === 6 ? 0 : dayOfWeek === 0 ? 6 : 6 - dayOfWeek;
+        const saturday = new Date(now);
+        saturday.setDate(saturday.getDate() + daysUntilSaturday);
+        const sunday = new Date(saturday);
+        sunday.setDate(sunday.getDate() + 1);
+        sunday.setHours(23, 59, 59, 999);
+        return eventStart <= sunday && eventEnd >= saturday;
+      }
+      case "custom": {
+        if (!timeFilter.startDate || !timeFilter.endDate) return true;
+        const filterStart = new Date(timeFilter.startDate);
+        const filterEnd = new Date(timeFilter.endDate);
+        filterEnd.setHours(23, 59, 59, 999);
+        return eventStart <= filterEnd && eventEnd >= filterStart;
+      }
+      default:
+        return true;
+    }
+  });
+}
 
 function InvalidateMapSize({ onLoaded }: { onLoaded?: (v: boolean) => void }) {
   const map = useMap();
@@ -121,12 +172,19 @@ export default function MapView({
 }) {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapInstance, setMapInstance] = useState<any>(null);
+  const dispatch = useDispatch();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
   const onChooseLocation = useAppSelector(
     (state: RootState) => state.app.onChooseLocation
   );
   const currentUserLocation = useAppSelector(
     (state: RootState) => state.app.currentUserLocation
+  );
+  const showFilterPanel = useAppSelector(
+    (state: RootState) => state.app.showFilterPanel
+  );
+  const mapFilters = useAppSelector(
+    (state: RootState) => state.app.mapFilters
   );
 
   const handleCenterOnLocation = () => {
@@ -148,6 +206,15 @@ export default function MapView({
     }
   };
 
+  const handleToggleFilter = () => {
+    dispatch(setShowFilterPanel(!showFilterPanel));
+  };
+
+  const hasActiveFilters = 
+    mapFilters.spotCategories.length > 0 || 
+    mapFilters.eventCategories.length > 0 ||
+    mapFilters.timeFilter.type !== "all";
+
   
   // Get events from Redux
   const events = useSelector((state: RootState) => state.events.events);
@@ -155,6 +222,24 @@ export default function MapView({
   // Fetch spots based on current map bounds
   const { spots, total, isPending: spotsLoading, fetchCheck } = useSpots();
   useEvents();
+  
+  // Apply filters to spots
+  const filteredSpots = spots?.filter((spot) => {
+    if (mapFilters.spotCategories.length === 0) return true;
+    return mapFilters.spotCategories.includes(spot.category || "default");
+  });
+
+  // Apply category filter to events
+  const categoryFilteredEvents = events?.filter((event: any) => {
+    if (mapFilters.eventCategories.length === 0) return true;
+    return mapFilters.eventCategories.includes(event.category || "default");
+  });
+
+  // Apply time filter to events
+  const filteredEvents = filterEventsByTime(
+    categoryFilteredEvents || [],
+    mapFilters.timeFilter
+  );
   
   // Custom icons for different marker types
   const spotIcon = new L.Icon({
@@ -208,7 +293,7 @@ export default function MapView({
         {/* Memoize spot icons by category */}
         {(() => {
           const spotIconCache: Record<string, L.DivIcon> = {};
-          return fetchCheck.shouldFetch && spots?.map((spot) => {
+          return fetchCheck.shouldFetch && filteredSpots?.map((spot) => {
             const cat = spot.category || 'default';
             if (!spotIconCache[cat]) {
               const iconType = categoryIcons[cat] || categoryIcons.default;
@@ -244,7 +329,7 @@ export default function MapView({
         {/* Create eventIcon once for all event markers */}
         {(() => {
           const eventIcon = createCustomIcon(categoryIcons.event, '', { isEvent: true });
-          return fetchCheck.shouldFetch && events?.map((event: any) => (
+          return fetchCheck.shouldFetch && filteredEvents?.map((event: any) => (
             <Marker
               key={`event-${event.id}`}
               position={[event.location[0], event.location[1]]}
@@ -255,7 +340,7 @@ export default function MapView({
               <Popup>
                 <div>
                   <strong>{event.name}</strong>
-                  <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Event</span>
+                  <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">Event</span>
                   {event.description && (
                     <div className="text-sm text-gray-600">{event.description}</div>
                   )}
@@ -268,6 +353,26 @@ export default function MapView({
           ));
         })()}
       </MapContainer>
+
+      {/* Filter Panel */}
+      {showFilterPanel && <FilterPanel />}
+
+      {/* Filter button - top right */}
+      <div className="absolute top-8 right-8 z-40 group">
+        <button
+          onClick={handleToggleFilter}
+          className={`text-gray-700 p-4 rounded-full shadow-md hover:shadow-lg transition-all ${
+            hasActiveFilters 
+              ? "bg-blue-500 text-white border-2 border-blue-600" 
+              : "bg-white border-2 border-gray-300 hover:border-gray-400"
+          }`}
+        >
+          <Filter size={24} />
+        </button>
+        <div className="absolute top-full right-0 mt-2 bg-white px-4 py-2 rounded-lg shadow-md text-sm text-gray-700 font-medium opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+          Filter map
+        </div>
+      </div>
 
       {/* Location button - always visible */}
       <div className="absolute bottom-8 right-8 z-40 group">
@@ -309,9 +414,10 @@ export default function MapView({
       )}
 
       {/* Spots & Events count indicator */}
-      {fetchCheck.shouldFetch && !spotsLoading && ((spots && spots.length > 0) || (events && events.length > 0)) && (
+      {fetchCheck.shouldFetch && !spotsLoading && ((filteredSpots && filteredSpots.length > 0) || (filteredEvents && filteredEvents.length > 0)) && (
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-lg shadow-md z-50 text-sm text-gray-700 font-medium">
-          {spots?.length || 0} spot{spots?.length !== 1 ? 's' : ''}, {events?.length || 0} event{events?.length !== 1 ? 's' : ''} visible
+          {filteredSpots?.length || 0} spot{filteredSpots?.length !== 1 ? 's' : ''}, {filteredEvents?.length || 0} event{filteredEvents?.length !== 1 ? 's' : ''} visible
+          {hasActiveFilters && <span className="ml-2 text-blue-600">(filtered)</span>}
         </div>
       )}
     </div>

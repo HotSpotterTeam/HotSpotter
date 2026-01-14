@@ -31,7 +31,8 @@ export function useEvents() {
           max_lat: mapBounds.maxLat.toString(),
           min_lng: mapBounds.minLng.toString(),
           max_lng: mapBounds.maxLng.toString(),
-          status: 'all'
+          status: 'all',
+          limit: '500', // Fetch up to 500 events for the map view
         });
         url += `?${params.toString()}`;
       }
@@ -96,10 +97,11 @@ export function useSpots() {
           min_lng: mapBounds.minLng.toString(),
           max_lng: mapBounds.maxLng.toString(),
           is_approved: 'true', // Only show approved spots on the map
+          limit: '500', // Fetch up to 500 spots for the map view
         });
         url += `?${params.toString()}`;
       } else {
-        url += '?is_approved=true'; // Only show approved spots
+        url += '?is_approved=true&limit=500'; // Only show approved spots
       }
       
       const res = await fetch(url);

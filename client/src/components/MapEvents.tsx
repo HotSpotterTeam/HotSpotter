@@ -53,14 +53,12 @@ export default function MapEvents() {
   const map = useMapEvents({
     click: (e) => {
       if (onChooseLocation) {
-        map.setView(e.latlng, 13);
         dispatch(
           setCreateSpotLocation({ lat: e.latlng.lat, lng: e.latlng.lng })
         );
         dispatch(setOnChooseLocation(false));
         dispatch(setShowCreateSpot(true));
       } else if (onChooseEventLocation) {
-        map.setView(e.latlng, 13);
         dispatch(
           setCreateEventLocation({ lat: e.latlng.lat, lng: e.latlng.lng })
         );
@@ -98,14 +96,14 @@ export default function MapEvents() {
   });
 
   // Request user's location when component mounts
-  /* useEffect(() => {
+  useEffect(() => {
     map.locate({
       enableHighAccuracy: true,
       watch: false, // Set to true if you want continuous updates
       timeout: 10000,
       maximumAge: 0,
     });
-  }, []);*/
+  }, []);
 
   return null;
 }
