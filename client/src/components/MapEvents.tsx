@@ -53,14 +53,12 @@ export default function MapEvents() {
   const map = useMapEvents({
     click: (e) => {
       if (onChooseLocation) {
-        map.setView(e.latlng, 13);
         dispatch(
           setCreateSpotLocation({ lat: e.latlng.lat, lng: e.latlng.lng })
         );
         dispatch(setOnChooseLocation(false));
         dispatch(setShowCreateSpot(true));
       } else if (onChooseEventLocation) {
-        map.setView(e.latlng, 13);
         dispatch(
           setCreateEventLocation({ lat: e.latlng.lat, lng: e.latlng.lng })
         );
