@@ -10,6 +10,10 @@ import React from 'react';
 
 export const categoryIcons = {
     beach: Waves,
+    restaurant: UtensilsCrossed,
+    cafe: Coffee,
+    bar: Wine,
+    park: Trees,
     shopping: ShoppingBag,
     parking: ParkingCircle,
     theatre: Theater,
@@ -22,10 +26,6 @@ export const categoryIcons = {
     sports_centre: Dumbbell,
     museum: Landmark,
     gallery: Image,
-    restaurant: UtensilsCrossed,
-    cafe: Coffee,
-    bar: Wine,
-    park: Trees,
     event: Calendar,
     default: MapPin
 };

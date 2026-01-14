@@ -32,7 +32,7 @@ async def list_events(
         min_lng: float | None = Query(None, description="Minimum longitude for bounding box"),
         max_lng: float | None = Query(None, description="Maximum longitude for bounding box"),
         page: int = Query(1, ge=1),
-        limit: int = Query(50, ge=1, le=100)
+        limit: int = Query(50, ge=1, le=1000)
 ) -> EventsResponse:
     """
     Get all events.

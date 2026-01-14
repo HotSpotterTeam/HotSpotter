@@ -30,7 +30,7 @@ async def list_spots(
         min_lng: float | None = Query(None),
         max_lng: float | None = Query(None),
         page: int = Query(1, ge=1),
-        limit: int = Query(50, ge=1, le=100)
+        limit: int = Query(50, ge=1, le=1000)
 ):
     """
     Get all spots.
