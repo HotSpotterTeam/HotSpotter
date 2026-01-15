@@ -18,7 +18,14 @@ export default function FilterPanel() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+      const target = event.target as HTMLElement;
+      
+      // Check if click is outside the panel AND not on a filter toggle button
+      if (
+        panelRef.current && 
+        !panelRef.current.contains(target) &&
+        !target.closest('[data-filter-toggle]')
+      ) {
         dispatch(setShowFilterPanel(false));
       }
     };
@@ -124,7 +131,7 @@ export default function FilterPanel() {
             onClick={() => setFilterType("spots")}
             className={`flex-1 py-2 px-3 rounded-lg font-semibold text-xs transition-all flex items-center justify-center gap-1.5 ${
               filterType === "spots"
-                ? "bg-blue-500 text-white shadow-md border-2 border-blue-600"
+                ? "bg-white text-blue-600 border-2 border-blue-500 shadow-sm"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
             }`}
           >
@@ -135,7 +142,7 @@ export default function FilterPanel() {
             onClick={() => setFilterType("events")}
             className={`flex-1 py-2 px-3 rounded-lg font-semibold text-xs transition-all flex items-center justify-center gap-1.5 ${
               filterType === "events"
-                ? "bg-orange-500 text-white shadow-md border-2 border-orange-600"
+                ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
             }`}
           >
@@ -145,7 +152,13 @@ export default function FilterPanel() {
         </div>
 
         {/* Categories Grid */}
-        <div className="grid grid-cols-3 gap-2">
+        <div 
+          className={`grid grid-cols-3 gap-2 p-3 rounded-lg border-2 ${
+            filterType === "spots" 
+              ? "border-blue-500 bg-blue-50/30" 
+              : "border-orange-500 bg-orange-50/30"
+          }`}
+        >
           {categories.map((category) => {
             const Icon = categoryIcons[category as keyof typeof categoryIcons] || categoryIcons.default;
             const isSelected = currentCategories.includes(category);
@@ -191,7 +204,7 @@ export default function FilterPanel() {
                 onClick={() => handleTimeFilterChange("all")}
                 className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
                   mapFilters.timeFilter.type === "all"
-                    ? "bg-orange-500 text-white border-2 border-orange-600"
+                    ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
                 }`}
               >
@@ -201,7 +214,7 @@ export default function FilterPanel() {
                 onClick={() => handleTimeFilterChange("today")}
                 className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
                   mapFilters.timeFilter.type === "today"
-                    ? "bg-orange-500 text-white border-2 border-orange-600"
+                    ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
                 }`}
               >
@@ -211,7 +224,7 @@ export default function FilterPanel() {
                 onClick={() => handleTimeFilterChange("tomorrow")}
                 className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
                   mapFilters.timeFilter.type === "tomorrow"
-                    ? "bg-orange-500 text-white border-2 border-orange-600"
+                    ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
                 }`}
               >
@@ -221,7 +234,7 @@ export default function FilterPanel() {
                 onClick={() => handleTimeFilterChange("weekend")}
                 className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
                   mapFilters.timeFilter.type === "weekend"
-                    ? "bg-orange-500 text-white border-2 border-orange-600"
+                    ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
                 }`}
               >
@@ -234,7 +247,7 @@ export default function FilterPanel() {
               onClick={() => handleTimeFilterChange("custom")}
               className={`w-full py-1.5 px-2 rounded-lg text-xs font-medium transition-all mb-2 ${
                 mapFilters.timeFilter.type === "custom"
-                  ? "bg-orange-500 text-white border-2 border-orange-600"
+                  ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
               }`}
             >

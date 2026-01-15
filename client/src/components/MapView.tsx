@@ -6,6 +6,7 @@ import {
   Popup,
   useMap,
   Circle,
+  CircleMarker,
 } from "react-leaflet";
 import { Navigation, AlertCircle, Filter } from "lucide-react";
 import { useAppSelector } from "../store/hooks";
@@ -147,6 +148,61 @@ function CenterMapOnEvent() {
   return null;
 }
 
+function CenterMapOnSpot() {
+  const map = useMap();
+  const selectedSpot = useSelector(
+    (state: RootState) => state.app.selectedSpot
+  );
+  const [highlightedSpotId, setHighlightedSpotId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (selectedSpot && selectedSpot.location && selectedSpot.location.length >= 2) {
+      const lat = selectedSpot.location[0];
+      const lng = selectedSpot.location[1];
+      
+      // Center map on spot location
+      map.setView([lat, lng], 18, {
+        animate: true,
+        duration: 0.5,
+      });
+      
+      // Highlight the spot with cyan border
+      setHighlightedSpotId(selectedSpot.id);
+      
+      // Remove highlight after 3 seconds
+      const timer = setTimeout(() => {
+        setHighlightedSpotId(null);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [selectedSpot, map]);
+
+  // Render cyan circle around highlighted spot
+  if (highlightedSpotId && selectedSpot && selectedSpot.location) {
+    const map = useMap();
+    // Convert coordinate to pixel
+    const point = map.latLngToContainerPoint([selectedSpot.location[0], selectedSpot.location[1]]);
+    point.y -= 30;
+    point.x -= 10;
+    const adjustedLatLng = map.containerPointToLatLng(point);
+    
+    return (
+      <CircleMarker
+        center={[adjustedLatLng.lat, adjustedLatLng.lng]}
+        radius={16}
+        pathOptions={{
+          color: 'cyan',
+          fillColor: 'transparent',
+          weight: 3,
+        }}
+      />
+    );
+  }
+
+  return null;
+}
+
 function CenterOnUserLocationHandler({ onMapReady }: { onMapReady: (map: any) => void }) {
   const map = useMap();
   
@@ -229,8 +285,11 @@ export default function MapView({
     return mapFilters.spotCategories.includes(spot.category || "default");
   });
 
+  // Filter out pending events (except for user profile and admin dashboard)
+  const nonPendingEvents = events?.filter((event: any) => event.status !== 'pending');
+
   // Apply category filter to events
-  const categoryFilteredEvents = events?.filter((event: any) => {
+  const categoryFilteredEvents = nonPendingEvents?.filter((event: any) => {
     if (mapFilters.eventCategories.length === 0) return true;
     return mapFilters.eventCategories.includes(event.category || "default");
   });
@@ -275,6 +334,7 @@ export default function MapView({
         <InvalidateMapSize onLoaded={(v) => setMapLoaded(v)} />
         <MapCursor cursor={onChooseLocation ? "crosshair" : "pointer"} />
         <CenterMapOnEvent />
+        <CenterMapOnSpot />
         <CenterOnUserLocationHandler onMapReady={setMapInstance} />
         <MapEvents />
         {currentUserLocation && (
@@ -345,7 +405,7 @@ export default function MapView({
                     <div className="text-sm text-gray-600">{event.description}</div>
                   )}
                   <div className="text-xs text-gray-500 mt-1">
-                    {event.category} • {event.date}
+                    {event.category} • {new Date(event.start_time).toLocaleDateString('en-GB')}
                   </div>
                 </div>
               </Popup>
@@ -361,6 +421,7 @@ export default function MapView({
       <div className="absolute top-8 right-8 z-40 group">
         <button
           onClick={handleToggleFilter}
+          data-filter-toggle
           className={`text-gray-700 p-4 rounded-full shadow-md hover:shadow-lg transition-all ${
             hasActiveFilters 
               ? "bg-blue-500 text-white border-2 border-blue-600" 
