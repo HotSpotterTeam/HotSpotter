@@ -231,18 +231,55 @@ const UserProfilePage = () => {
   };
 
   const loadPendingEventsAtMySpots = async () => {
-    if (!user || mySpots.length === 0) return;
+    if (!user) return;
     try {
-      // Get all pending events
-      const data: any = await authFetch(`/api/events/?status=pending`);
-      const allPendingEvents = data.data || [];
+      // Get all pending events first
+      const eventsData: any = await authFetch(`/api/events/?status=pending&limit=1000`);
+      const allPendingEvents = eventsData.data || [];
       
-      // Filter to only show events at spots I own (but not created by me)
-      const mySpotIds = mySpots.map(spot => spot.id);
-      const pendingAtMySpots = allPendingEvents.filter(
-        (event: Event) => event.spot_id && mySpotIds.includes(event.spot_id) && event.owner_id !== user.id
+      if (allPendingEvents.length === 0) {
+        setPendingEventsAtMySpots([]);
+        return;
+      }
+      
+      // Get unique spot IDs from pending events
+      const spotIdsInPendingEvents = [...new Set(
+        allPendingEvents
+          .filter((e: Event) => e.spot_id)
+          .map((e: Event) => e.spot_id)
+      )] as number[];
+      
+      // Instead of fetching all spots, check each spot's ownership directly
+      // This avoids pagination issues when you have thousands of spots
+      const spotOwnershipChecks = await Promise.all(
+        spotIdsInPendingEvents.map(async (spotId) => {
+          try {
+            const spotData: any = await authFetch(`/api/spots/${spotId}`);
+            return {
+              spotId,
+              isMySpot: spotData.owner_id === user.id
+            };
+          } catch (err) {
+            console.error(`Failed to check ownership of spot ${spotId}:`, err);
+            return { spotId, isMySpot: false };
+          }
+        })
       );
       
+      const mySpotIdsFromPending = spotOwnershipChecks
+        .filter(check => check.isMySpot)
+        .map(check => check.spotId);
+      
+      // Filter to only show events at spots I own (but not created by me)
+      const pendingAtMySpots = allPendingEvents.filter(
+        (event: Event) => {
+          const isAtMySpot = event.spot_id && mySpotIdsFromPending.includes(event.spot_id);
+          const notCreatedByMe = event.owner_id !== user.id;
+          return isAtMySpot && notCreatedByMe;
+        }
+      );
+      
+      console.log('Filtered pending events at my spots:', pendingAtMySpots.length, pendingAtMySpots);
       setPendingEventsAtMySpots(pendingAtMySpots);
 
       // Load spot names for these events
@@ -296,7 +333,10 @@ const UserProfilePage = () => {
     if (!user || initialLoading) return; // Skip if still initializing
 
     if (activeTab === "spots") loadMySpots(page);
-    if (activeTab === "events") loadMyEvents(page);
+    if (activeTab === "events") {
+      loadMyEvents(page);
+      loadPendingEventsAtMySpots(); // Load pending events when viewing events tab
+    }
     if (activeTab === "reports") loadMyReports(page);
     if (activeTab === "favorites") loadFavoriteSpots(page);
     if (activeTab === "subscriptions") loadSubscribedEvents(page);
@@ -305,12 +345,7 @@ const UserProfilePage = () => {
     setSearchTerm("");
   }, [activeTab, page]);
 
-  // Load pending events when spots are loaded
-  useEffect(() => {
-    if (mySpots.length > 0) {
-      loadPendingEventsAtMySpots();
-    }
-  }, [mySpots.length]);
+  // Remove the old useEffect that depended on mySpots.length
 
   // Clear search when switching tabs
   useEffect(() => {
@@ -615,7 +650,7 @@ const UserProfilePage = () => {
                             )}
                           </div>
                           <div className="text-xs text-gray-600">
-                            <div><span className="text-gray-500">Start:</span> {new Date(event.start_time).toLocaleString()}</div>
+                            <div><span className="text-gray-500">Start:</span> {new Date(event.start_time).toLocaleDateString('en-GB')}</div>
                           </div>
                         </div>
                         <button
@@ -672,11 +707,11 @@ const UserProfilePage = () => {
                       <div className="grid grid-cols-2 gap-3 text-xs text-gray-600 mb-3">
                         <div>
                           <span className="text-gray-500">Start:</span>{" "}
-                          {new Date(event.start_time).toLocaleString()}
+                          {new Date(event.start_time).toLocaleDateString('en-GB')}
                         </div>
                         <div>
                           <span className="text-gray-500">End:</span>{" "}
-                          {new Date(event.end_time).toLocaleString()}
+                          {new Date(event.end_time).toLocaleDateString('en-GB')}
                         </div>
                       </div>
                       <div className="flex items-center gap-4 text-xs text-gray-500">
@@ -879,11 +914,11 @@ const UserProfilePage = () => {
                       <div className="grid grid-cols-2 gap-3 text-xs text-gray-600 mb-3">
                         <div>
                           <span className="text-gray-500">Start:</span>{" "}
-                          {new Date(event.start_time).toLocaleString()}
+                          {new Date(event.start_time).toLocaleDateString('en-GB')}
                         </div>
                         <div>
                           <span className="text-gray-500">End:</span>{" "}
-                          {new Date(event.end_time).toLocaleString()}
+                          {new Date(event.end_time).toLocaleDateString('en-GB')}
                         </div>
                       </div>
                       <div className="flex items-center gap-4 text-xs text-gray-500">
