@@ -1,8 +1,8 @@
 from fastapi import APIRouter, status, Path, Query, Depends, HTTPException
 from sqlalchemy import desc
 from app.db import get_session
-from app.models import Report, User, Event, Spot
-from app.api.api_models import ReportResponse, CreateReport, UpdateReport, Report as ReportModel
+from app.models import Report, User, Event, Spot, ReportFlag
+from app.api.api_models import ReportResponse, CreateReport, UpdateReport, Report as ReportModel, CreateReportFlag
 from app.api.auth_utils import get_current_user
 from typing import List, Optional
 from datetime import datetime
@@ -203,17 +203,30 @@ async def delete_report(
 
 @router.post("/{id}/flag", status_code=status.HTTP_200_OK)
 async def flag_report(
+        flag_data: CreateReportFlag,  # <--- Now accepts JSON body
         id: int = Path(...),
         current_user: User = Depends(get_current_user),
         request_session_id=Depends(get_request_session_id)
 ):
-    """Mark a report as inappropriate"""
+    """Mark a report as inappropriate with a reason"""
     with get_session() as session:
         report = session.query(Report).filter(Report.id == id).first()
         if not report:
             raise HTTPException(status_code=404, detail="Report not found")
 
-        report.is_flagged = True
+        # 1. Create the specific flag entry
+        new_flag = ReportFlag(
+            report_id=report.id,
+            user_id=current_user.id,
+            category=flag_data.category,
+            reason=flag_data.reason
+        )
+        session.add(new_flag)
+
+        # 2. Update the parent report status if not already flagged
+        if not report.is_flagged:
+            report.is_flagged = True
+        
         session.commit()
 
         log_user_action("flag_report", current_user, new_data=report.to_api_model(),
@@ -232,7 +245,7 @@ async def unflag_report(
     current_user: User = Depends(get_current_user),
     request_session_id=Depends(get_request_session_id)
 ):
-    """Admin removes the flag, approving the report"""
+    """Admin removes the flag (dismiss), approving the report"""
     with get_session() as session:
         report = session.query(Report).filter(Report.id == id).first()
         if not report:
@@ -242,6 +255,10 @@ async def unflag_report(
             raise HTTPException(
                 status_code=403, detail="Only admins can unflag reports")
 
+        # 1. Delete all flag entries for this report
+        session.query(ReportFlag).filter(ReportFlag.report_id == id).delete()
+
+        # 2. Set status back to false
         report.is_flagged = False
         session.commit()
 

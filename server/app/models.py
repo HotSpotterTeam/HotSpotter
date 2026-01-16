@@ -105,6 +105,7 @@ class Spot(Base):
     category = Column(String, nullable=False)
     location = Column(Geometry(geometry_type="POINT", srid=4326), nullable=False)  # Indexed with GIST
     address = Column(String, nullable=True)
+    external_link = Column(String, nullable=True)
 
     # Permanence
     spot_type = Column(String(20), nullable=False, default='permanent')
@@ -149,6 +150,7 @@ class Spot(Base):
             "is_approved": self.is_approved,
             "spot_type": self.spot_type,
             "address": self.address,
+            "external_link": self.external_link,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "last_activity": self.last_activity.isoformat() if self.last_activity else None,
@@ -170,6 +172,7 @@ class Event(Base):
     start_time = Column(DateTime)
     end_time = Column(DateTime)
     category = Column(String)
+    external_link = Column(String, nullable=True) # Link to event page
     status = Column(String)  # Event status: 'active', 'archived', 'cancelled'
     owner_id = Column(Integer, ForeignKey("users.id"))
     spot_id = Column(Integer, ForeignKey("spots.id"), nullable=True)
@@ -195,8 +198,10 @@ class Event(Base):
             "start_time": self.start_time.isoformat() if self.start_time else None,
             "end_time": self.end_time.isoformat() if self.end_time else None,
             "category": self.category,
+            "external_link": self.external_link,
             "status": self.status,
             "spot_id": self.spot_id,
+            "spot_name": self.spot.name if self.spot else None,
             "owner_id": self.owner_id if self.owner_id is not None else None,
         }
 
@@ -222,6 +227,8 @@ class Report(Base):
     spot = relationship("Spot", back_populates="reports")
     user = relationship("User", back_populates="reports")
 
+    flags = relationship("ReportFlag", back_populates="report", cascade="all, delete-orphan")
+
     def to_api_model(self) -> dict:
         user_name = self.user.name if self.user and self.user.name else (self.user.email if self.user else "Anonymous")
         return {
@@ -236,9 +243,32 @@ class Report(Base):
             "time": self.time.isoformat() if self.time else None,
             "status": self.status,
             "is_flagged": self.is_flagged,
-            "score": self.score
+            "score": self.score,
+            "flags": [
+                {
+                    "id": f.id,
+                    "user_id": f.user_id,
+                    "category": f.category,
+                    "reason": f.reason,
+                    "created_at": f.created_at.isoformat() if f.created_at else None
+                } for f in self.flags
+            ]
         }
 
+class ReportFlag(Base):
+    """Stores individual flags for reports."""
+    __tablename__ = "report_flags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    report_id = Column(Integer, ForeignKey("reports.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    reason = Column(String, nullable=True)
+    category = Column(String, nullable=False) # e.g. "spam", "offensive"
+    created_at = Column(DateTime, nullable=False, default=func.now())
+
+    # Relationships
+    report = relationship("Report", back_populates="flags")
+    user = relationship("User")
 
 class SpotFavorite(Base):
     """User's favorite spots."""

@@ -31,6 +31,7 @@ const validationSchema = Yup.object({
     .min(3, "Title must be at least 3 characters"),
   category: Yup.string().required("Please select a category"),
   description: Yup.string().trim(),
+  externalLink: Yup.string().url("Please enter a valid URL (e.g. https://...)").nullable(),
 });
 
 export default function CreateSpotModal({ initialData, isOpen, onCloseOverride }: CreateSpotModalProps) {
@@ -51,6 +52,7 @@ export default function CreateSpotModal({ initialData, isOpen, onCloseOverride }
         name: initialData.name,
         description: initialData.description || "",
         category: initialData.category,
+        externalLink: initialData.external_link || "",
       });
       // If location exists, put it in Redux so the input field sees it
       if (initialData.location) {
@@ -59,11 +61,13 @@ export default function CreateSpotModal({ initialData, isOpen, onCloseOverride }
         // GeoJSON is [lng, lat], Leaflet is [lat, lng]. 
         const lat = isArray ? initialData.location[1] : initialData.location.lat;
         const lng = isArray ? initialData.location[0] : initialData.location.lng;
-        
+
         dispatch(setCreateSpotLocation({ lat, lng }));
       }
     }
   }, [initialData, showCreateSpot]);
+
+
 
   const createSpotMutation = useMutation({
     mutationFn: async (data: {
@@ -73,15 +77,16 @@ export default function CreateSpotModal({ initialData, isOpen, onCloseOverride }
       category: string;
       spot_type: string;
       address?: string;
+      external_link?: string;
     }) => {
       const API_URL =
         import.meta.env.VITE_API_URL?.replace(/\/$/, "") ||
         "http://127.0.0.1:8000";
-      const url = initialData 
+      const url = initialData
         ? `${API_URL}/api/spots/${initialData.id}` // Edit URL
         : `${API_URL}/api/spots/`;                 // Create URL
       const method = initialData ? "PUT" : "POST";
-      const response = await fetch(url, { 
+      const response = await fetch(url, {
         method: method,
         headers: {
           "Content-Type": "application/json",
@@ -114,6 +119,7 @@ export default function CreateSpotModal({ initialData, isOpen, onCloseOverride }
       name: "",
       description: "",
       category: "",
+      externalLink: "",
     },
     validationSchema,
     onSubmit: (values) => {
@@ -130,6 +136,7 @@ export default function CreateSpotModal({ initialData, isOpen, onCloseOverride }
         location: [createSpotLocation.lat, createSpotLocation.lng],
         category: values.category,
         spot_type: "permanent",
+        external_link: values.externalLink.trim() || undefined,
       });
     },
   });
@@ -157,26 +164,26 @@ export default function CreateSpotModal({ initialData, isOpen, onCloseOverride }
     <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
       <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-md">
         {showSuccess ? (
-         initialData ? (
-             <div className="text-center py-8">
-                <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  {/* Reuse CheckCircle icon from lucide-react if imported, or just use text */}
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">Spot Updated!</h3>
-                <p className="text-gray-600 mb-6">
-                   Your changes have been saved. 
-                   It may need to be re-approved by an admin.
-                </p>
-                <button 
-                  onClick={onClose}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium"
-                >
-                  Close
-                </button>
-             </div>
+          initialData ? (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                {/* Reuse CheckCircle icon from lucide-react if imported, or just use text */}
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Spot Updated!</h3>
+              <p className="text-gray-600 mb-6">
+                Your changes have been saved.
+                It may need to be re-approved by an admin.
+              </p>
+              <button
+                onClick={onClose}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium"
+              >
+                Close
+              </button>
+            </div>
           ) : (
-             <SpotCreatedSuccess onClose={onClose} />
+            <SpotCreatedSuccess onClose={onClose} />
           )
         ) : (
           // Form
@@ -185,43 +192,42 @@ export default function CreateSpotModal({ initialData, isOpen, onCloseOverride }
               {initialData ? "Edit Spot" : "Create New Spot"}
             </h2>
 
-        {(createSpotMutation.isError || locationError) && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 rounded-lg">
-            <p className="text-sm text-red-700">
-              {createSpotMutation.error instanceof Error
-                ? createSpotMutation.error.message
-                : locationError || "Failed to create spot. Please try again."}
-            </p>
-          </div>
-        )}
-
-        <form onSubmit={formik.handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="spot-title"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Title
-            </label>
-            <input
-              id="spot-title"
-              name="name"
-              type="text"
-              placeholder="e.g., Beach at Haifa Port"
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                formik.errors.name && formik.touched.name
-                  ? "border-red-500 focus:ring-red-500"
-                  : "border-gray-300 focus:ring-blue-500"
-              }`}
-              autoComplete="off"
-              value={formik.values.name}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-            />
-            {formik.errors.name && formik.touched.name && (
-              <p className="mt-1 text-sm text-red-600">{formik.errors.name}</p>
+            {(createSpotMutation.isError || locationError) && (
+              <div className="mb-4 p-3 bg-red-100 border border-red-400 rounded-lg">
+                <p className="text-sm text-red-700">
+                  {createSpotMutation.error instanceof Error
+                    ? createSpotMutation.error.message
+                    : locationError || "Failed to create spot. Please try again."}
+                </p>
+              </div>
             )}
-          </div>
+
+            <form onSubmit={formik.handleSubmit} className="space-y-4">
+              <div>
+                <label
+                  htmlFor="spot-title"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Title
+                </label>
+                <input
+                  id="spot-title"
+                  name="name"
+                  type="text"
+                  placeholder="e.g., Beach at Haifa Port"
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${formik.errors.name && formik.touched.name
+                      ? "border-red-500 focus:ring-red-500"
+                      : "border-gray-300 focus:ring-blue-500"
+                    }`}
+                  autoComplete="off"
+                  value={formik.values.name}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                />
+                {formik.errors.name && formik.touched.name && (
+                  <p className="mt-1 text-sm text-red-600">{formik.errors.name}</p>
+                )}
+              </div>
 
           <div>
             <label
@@ -270,84 +276,110 @@ export default function CreateSpotModal({ initialData, isOpen, onCloseOverride }
             )}
           </div>
 
-          <div>
-            <label
-              htmlFor="spot-description"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Description
-            </label>
-            <textarea
-              id="spot-description"
-              name="description"
-              placeholder="What should people know about this location?"
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              autoComplete="off"
-              value={formik.values.description}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-            />
-          </div>
+              <div>
+                <label
+                  htmlFor="spot-description"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Description
+                </label>
+                <textarea
+                  id="spot-description"
+                  name="description"
+                  placeholder="What should people know about this location?"
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoComplete="off"
+                  value={formik.values.description}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                />
+              </div>
 
-          <div>
-            <label
-              htmlFor="spot-location"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Location
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                id="spot-location"
-                name="location"
-                type="text"
-                placeholder="Click on map or enter address"
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                  locationError
-                    ? "border-red-500 focus:ring-red-500"
-                    : "border-gray-300 focus:ring-blue-500"
-                }`}
-                value={getLocationString(createSpotLocation, "")}
-                readOnly
-                autoComplete="off"
-              />
-              <button
-                type="button"
-                className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                onClick={() => {
-                  dispatch(setShowCreateSpot(false));
-                  dispatch(setOnChooseLocation(true));
-                  dispatch(setCreateSpotLocation(null));
-                  setLocationError("");
-                }}
-              >
-                <MapPin size={16} />
-              </button>
-            </div>
-            {locationError && (
-              <p className="mt-1 text-sm text-red-600">{locationError}</p>
-            )}
-          </div>
+              <div>
+                <label
+                  htmlFor="spot-link"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Website / Link (Optional)
+                </label>
+                <input
+                  id="spot-link"
+                  name="externalLink"
+                  type="url"
+                  placeholder="https://example.com"
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                    formik.errors.externalLink && formik.touched.externalLink
+                      ? "border-red-500 focus:ring-red-500"
+                      : "border-gray-300 focus:ring-blue-500"
+                  }`}
+                  autoComplete="off"
+                  value={formik.values.externalLink}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                />
+                {formik.errors.externalLink && formik.touched.externalLink && (
+                  <p className="mt-1 text-sm text-red-600">{formik.errors.externalLink}</p>
+                )}
+              </div>
 
-          <div className="flex gap-3 mt-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200 font-medium"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={createSpotMutation.isPending}
-              className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {createSpotMutation.isPending ? "Saving..." : (initialData ? "Save Changes" : "Create Spot")}
-            </button>
-          </div>
-        </form>
-        </>
+              <div>
+                <label
+                  htmlFor="spot-location"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Location
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="spot-location"
+                    name="location"
+                    type="text"
+                    placeholder="Click on map or enter address"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${locationError
+                        ? "border-red-500 focus:ring-red-500"
+                        : "border-gray-300 focus:ring-blue-500"
+                      }`}
+                    value={getLocationString(createSpotLocation, "")}
+                    readOnly
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    onClick={() => {
+                      dispatch(setShowCreateSpot(false));
+                      dispatch(setOnChooseLocation(true));
+                      dispatch(setCreateSpotLocation(null));
+                      setLocationError("");
+                    }}
+                  >
+                    <MapPin size={16} />
+                  </button>
+                </div>
+                {locationError && (
+                  <p className="mt-1 text-sm text-red-600">{locationError}</p>
+                )}
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createSpotMutation.isPending}
+                  className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {createSpotMutation.isPending ? "Saving..." : (initialData ? "Save Changes" : "Create Spot")}
+                </button>
+              </div>
+            </form>
+          </>
         )}
       </div>
     </div>

@@ -18,6 +18,7 @@ import {
 import AdminDashboard from "./components/AdminDashboard";
 import { useEvents } from "./queries";
 import UserProfilePage from "./components/UserProfilePage";
+import SpotDetail from "./components/SpotDetail";
 
 const HotSpotter = () => {
   // Fetch events from API
@@ -42,13 +43,17 @@ const HotSpotter = () => {
   );
   const eventsList = Array.isArray(eventsFromStore) ? eventsFromStore : [];
 
-  const onSelectEventFromMap = (spot: any) => {
-    // Find the corresponding event from the events list
-    const event = eventsList.find((e: Event) => e.id === spot.id);
-    if (event) {
+  const onSelectMapItem = (item: any, type: "spot" | "event") => {
+    if (type === "spot") {
+      // It's a spot, save to selectedSpot
+      dispatch(setSelectedSpot(item));
+    } else {
+      // It's an event, save to selectedEvent
+      const event = eventsList.find((e: Event) => e.id === item.id) || item;
       dispatch(setSelectedEvent(event));
     }
   };
+
   const onToggleCreate = () => {
     dispatch(setShowCreateSpot(!showCreateSpot));
   };
@@ -73,9 +78,10 @@ const HotSpotter = () => {
             error={eventsError}
           />
           <MapView
-            onSelectSpot={onSelectEventFromMap}
+            onSelectSpot={onSelectMapItem}
           />
           <EventDetail />
+          <SpotDetail />
           <CreateSpotModal />
           <CreateEventModal />
         </div>

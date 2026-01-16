@@ -30,6 +30,7 @@ const validationSchema = Yup.object({
     .min(3, "Name must be at least 3 characters"),
   category: Yup.string().required("Please select a category"),
   description: Yup.string().trim(),
+  externalLink: Yup.string().url("Please enter a valid URL").nullable(),
   startTime: Yup.string().required("Please enter start time"),
   endTime: Yup.string()
     .required("Please enter end time")
@@ -89,13 +90,14 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
   useEffect(() => {
     if (initialData && showCreateEvent) {
       // 1. Format Dates
-      const formatTime = (isoString: string) => 
+      const formatTime = (isoString: string) =>
         isoString ? new Date(isoString).toISOString().slice(0, 16) : "";
 
       formik.setValues({
         name: initialData.name,
         description: initialData.description || "",
         category: initialData.category,
+        externalLink: initialData.external_link || "",
         startTime: formatTime(initialData.start_time),
         endTime: formatTime(initialData.end_time),
       });
@@ -121,11 +123,12 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
       start_time: string;
       end_time: string;
       category: string;
+      external_link?: string;
       spot_id?: number;
       custom_location?: [number, number];
     }) => {
-      const url = initialData 
-        ? `${API_URL}/api/events/${initialData.id}` 
+      const url = initialData
+        ? `${API_URL}/api/events/${initialData.id}`
         : `${API_URL}/api/events/`;
       const method = initialData ? "PUT" : "POST";
       const response = await fetch(url, {
@@ -161,6 +164,7 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
       name: "",
       description: "",
       category: "",
+      externalLink: "",
       startTime: "",
       endTime: "",
     },
@@ -190,6 +194,7 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
         start_time: values.startTime,
         end_time: values.endTime,
         category: values.category,
+        external_link: values.externalLink.trim() || undefined,
       };
 
       if (locationType === "spot") {
@@ -281,19 +286,19 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
               {createdEvent?.status === "active" && <Calendar className="text-green-600" size={32} />}
             </div>
             <h3 className="text-xl font-bold text-gray-800 mb-2">
-                {createdEvent?.status === "pending" && "Event Awaiting Approval"}
-                {createdEvent?.status === "pending-start" && "Event Scheduled"}
-                {createdEvent?.status === "active" && (initialData ? "Event Updated!" : "Event Created!")}
+              {createdEvent?.status === "pending" && "Event Awaiting Approval"}
+              {createdEvent?.status === "pending-start" && "Event Scheduled"}
+              {createdEvent?.status === "active" && (initialData ? "Event Updated!" : "Event Created!")}
             </h3>
             <p className="text-gray-600 mb-6">
-                {status === "pending" &&
-                    "Your event needs approval by the spot owner. You'll be notified once approved."}
+              {status === "pending" &&
+                "Your event needs approval by the spot owner. You'll be notified once approved."}
 
-                {status === "pending-start" &&
-                    "Waiting for the event to start."}
+              {status === "pending-start" &&
+                "Waiting for the event to start."}
 
-                {status === "active" &&
-                    "Your event has been created successfully."}
+              {status === "active" &&
+                "Your event has been created successfully."}
             </p>
             <button
               onClick={onClose}
@@ -331,11 +336,10 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
                   name="name"
                   type="text"
                   placeholder="e.g., Beach Volleyball Tournament"
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                    formik.errors.name && formik.touched.name
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${formik.errors.name && formik.touched.name
                       ? "border-red-500 focus:ring-red-500"
                       : "border-gray-300 focus:ring-blue-500"
-                  }`}
+                    }`}
                   autoComplete="off"
                   value={formik.values.name}
                   onChange={formik.handleChange}
@@ -356,11 +360,10 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
                 <select
                   id="event-category"
                   name="category"
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                    formik.errors.category && formik.touched.category
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${formik.errors.category && formik.touched.category
                       ? "border-red-500 focus:ring-red-500"
                       : "border-gray-300 focus:ring-blue-500"
-                  }`}
+                    }`}
                   autoComplete="off"
                   value={formik.values.category}
                   onChange={formik.handleChange}
@@ -411,6 +414,33 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
                 />
               </div>
 
+              <div>
+                <label
+                  htmlFor="event-link"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Website / Link (Optional)
+                </label>
+                <input
+                  id="event-link"
+                  name="externalLink"
+                  type="url"
+                  placeholder="https://ticket-page.com"
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                    formik.errors.externalLink && formik.touched.externalLink
+                      ? "border-red-500 focus:ring-red-500"
+                      : "border-gray-300 focus:ring-blue-500"
+                  }`}
+                  autoComplete="off"
+                  value={formik.values.externalLink}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                />
+                 {formik.errors.externalLink && formik.touched.externalLink && (
+                  <p className="mt-1 text-sm text-red-600">{formik.errors.externalLink}</p>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label
@@ -424,11 +454,10 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
                     name="startTime"
                     type="datetime-local"
                     min={minDateTime}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                      formik.errors.startTime && formik.touched.startTime
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${formik.errors.startTime && formik.touched.startTime
                         ? "border-red-500 focus:ring-red-500"
                         : "border-gray-300 focus:ring-blue-500"
-                    }`}
+                      }`}
                     value={formik.values.startTime}
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
@@ -450,11 +479,10 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
                     name="endTime"
                     type="datetime-local"
                     min={formik.values.startTime || minDateTime}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                      formik.errors.endTime && formik.touched.endTime
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${formik.errors.endTime && formik.touched.endTime
                         ? "border-red-500 focus:ring-red-500"
                         : "border-gray-300 focus:ring-blue-500"
-                    }`}
+                      }`}
                     value={formik.values.endTime}
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
@@ -473,13 +501,12 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
                 <div className="space-y-3">
                   {/* Option 1: Existing Spot */}
                   <div
-                    className={`border-2 rounded-lg p-3 transition-colors ${
-                      locationType === "spot"
+                    className={`border-2 rounded-lg p-3 transition-colors ${locationType === "spot"
                         ? "border-blue-500 bg-blue-50"
                         : "border-gray-200 hover:border-gray-300"
-                    }`}
+                      }`}
                   >
-                    <div 
+                    <div
                       className="flex items-center gap-2 mb-2 cursor-pointer"
                       onClick={() => {
                         setLocationType("spot");
@@ -536,11 +563,10 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
 
                   {/* Option 2: Custom Location */}
                   <div
-                    className={`border-2 rounded-lg p-3 cursor-pointer transition-colors ${
-                      locationType === "custom"
+                    className={`border-2 rounded-lg p-3 cursor-pointer transition-colors ${locationType === "custom"
                         ? "border-blue-500 bg-blue-50"
                         : "border-gray-200 hover:border-gray-300"
-                    }`}
+                      }`}
                     onClick={() => setLocationType("custom")}
                   >
                     <div className="flex items-center gap-2 mb-2">

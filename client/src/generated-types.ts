@@ -26,7 +26,9 @@ export interface Event {
   start_time: string;
   end_time: string;
   spot_id?: number;
+  spot_name?: string | null;
   owner_id?: number;
+  external_link?: string | null;
 }
 export interface EventResponse {
   status: string;
@@ -75,6 +77,7 @@ export interface Spot {
   category: string;
   is_approved: boolean;
   owner_id: number;
+  external_link?: string | null;
   description?: string;
 }
 

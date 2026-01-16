@@ -89,3 +89,24 @@ export const getReports = async (token: string | null, page = 1, limit = 50) => 
 export const dismissReport = async (token: string | null, id: number) => {
   return authFetch(token, `/api/reports/${id}/flag`, { method: "DELETE" });
 };
+
+export const deleteReport = async (token: string | null, id: number) => {
+  return authFetch(token, `/api/reports/${id}`, { method: "DELETE" });
+};
+
+// 6. Metrics
+export const getMetricActivity = async (token: string | null) => {
+  return authFetch<any>(token, "/api/admin/metrics/activity");
+};
+
+export const getMetricEngagement = async (token: string | null) => {
+  return authFetch<any>(token, "/api/admin/metrics/engagement");
+};
+
+export const getMetricReports = async (token: string | null) => {
+  return authFetch<any>(token, "/api/admin/metrics/reports");
+};
+
+export const getMetricFlags = async (token: string | null) => {
+  return authFetch<any>(token, "/api/admin/metrics/flags");
+};

@@ -5,6 +5,7 @@ from app.api.api_models import UserResponse, LoginResponse, GoogleLoginRequest
 from app.jwt_utils import create_access_token
 from app.google_auth_utils import verify_google_token
 from app.api.auth_utils import get_current_user
+from app.hs_logging import log_user_action, get_request_session_id
 
 router = APIRouter()
 
@@ -46,13 +47,13 @@ async def dev_login(user_id: int = 1):
     
 
 @router.post("/google", status_code=status.HTTP_200_OK)
-async def google_login(request: GoogleLoginRequest):
+async def google_login(request: GoogleLoginRequest, request_session_id=Depends(get_request_session_id)):
     """
     Google OAuth login endpoint
     Accepts Google ID token, verifies it, and creates/finds user
     """
     google_user = verify_google_token(request.token)
-
+    
     if not google_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -85,7 +86,7 @@ async def google_login(request: GoogleLoginRequest):
             session.refresh(user)
 
         access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
-
+        log_user_action("login", user, new_data={"method": "google"}, request_session_id=request_session_id) # Log the login action
         user_response = UserResponse(
             id=user.id,
             username=user.username,

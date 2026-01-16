@@ -1,31 +1,31 @@
 import React, { useState, useEffect, useRef } from "react";
-import { TrendingUp, Camera, Navigation, Flag, Star, ExternalLink, MapPin } from "lucide-react";
+import { MapPin, Navigation, Flag, Star, ExternalLink } from "lucide-react";
 import { RootState } from "../state/store";
 import { useDispatch, useSelector } from "react-redux";
-import { setSelectedEvent } from "../state/AppSlice";
-import { Event, Report } from "../generated-types";
+import { setSelectedSpot } from "../state/AppSlice";
+import { Report } from "../generated-types";
 import { getReports, flagReport } from "../api/reportsApi";
 import { useAppSelector } from "../store/hooks";
 import AddReportModal from "./AddReportModal";
 import FlagReportModal from "./FlagReportModal";
 
-export default function EventDetail() {
-  const selectedEvent = useSelector(
-    (state: RootState) => state.app.selectedEvent
+
+export default function SpotDetail() {
+  const selectedSpot = useSelector(
+    (state: RootState) => state.app.selectedSpot
   );
   const dispatch = useDispatch();
   const { token } = useAppSelector((state) => state.auth);
-  
+
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddReport, setShowAddReport] = useState(false);
   const [reportToFlag, setReportToFlag] = useState<number | null>(null);
   const detailRef = useRef<HTMLDivElement>(null);
-  const modalRef = useRef<HTMLDivElement>(null);
 
   const onClose = () => {
-    dispatch(setSelectedEvent(null));
-    setShowAddReport(false); // Reset modal state when closing
+    dispatch(setSelectedSpot(null));
+    setShowAddReport(false);
   };
 
   // Handle click outside to close
@@ -33,7 +33,7 @@ export default function EventDetail() {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
       if (
-        detailRef.current && 
+        detailRef.current &&
         !detailRef.current.contains(target) &&
         !document.querySelector('[data-modal="add-report"]')?.contains(target) &&
         !document.getElementById('flag-modal-content')?.contains(target)
@@ -42,8 +42,7 @@ export default function EventDetail() {
       }
     };
 
-    if (selectedEvent) {
-      // Add listener with a slight delay to prevent immediate closing
+    if (selectedSpot) {
       setTimeout(() => {
         document.addEventListener("mousedown", handleClickOutside);
       }, 100);
@@ -52,18 +51,19 @@ export default function EventDetail() {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [selectedEvent]);
+  }, [selectedSpot]);
 
-  // Fetch reports when event is selected
+  // Fetch reports when spot is selected
   useEffect(() => {
-    if (selectedEvent?.id) {
+    if (selectedSpot?.id) {
       setLoading(true);
-      getReports(selectedEvent.id, undefined, undefined)
+      // Fetch reports for this spot (undefined for eventId)
+      getReports(undefined, selectedSpot.id, undefined)
         .then(setReports)
         .catch(console.error)
         .finally(() => setLoading(false));
     }
-  }, [selectedEvent?.id]);
+  }, [selectedSpot?.id]);
 
   const handleFlagReport = (reportId: number) => {
     if (!token) {
@@ -74,18 +74,19 @@ export default function EventDetail() {
   };
 
   const handleFlagSuccess = () => {
-  if (selectedEvent?.id) {
-     getReports(selectedEvent.id, undefined, undefined)
-      .then(setReports)
-      .catch(console.error);
-  }
-  alert("Report flagged for review. Thank you for helping keep our community safe.");
-};
+    // Refresh the reports list to show any status changes (if applicable)
+    // or just to ensure data is fresh
+    if (selectedSpot?.id) {
+      getReports(undefined, selectedSpot.id, undefined)
+        .then(setReports)
+        .catch(console.error);
+    }
+    alert("Report flagged for review. Thank you for helping keep our community safe.");
+  };
 
   const handleReportAdded = () => {
-    // Refresh reports list
-    if (selectedEvent?.id) {
-      getReports(selectedEvent.id, undefined, undefined)
+    if (selectedSpot?.id) {
+      getReports(undefined, selectedSpot.id, undefined)
         .then(setReports)
         .catch(console.error);
     }
@@ -93,7 +94,6 @@ export default function EventDetail() {
 
   const renderScore = (score?: number) => {
     if (!score) return null;
-    
     return (
       <div className="flex items-center gap-1">
         {[...Array(5)].map((_, i) => (
@@ -113,7 +113,7 @@ export default function EventDetail() {
       const now = new Date();
       const diffMs = now.getTime() - date.getTime();
       const diffMins = Math.floor(diffMs / 60000);
-      
+
       if (diffMins < 1) return "Just now";
       if (diffMins < 60) return `${diffMins}m ago`;
       if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
@@ -123,54 +123,40 @@ export default function EventDetail() {
     }
   };
 
-  return selectedEvent ? (
+  return selectedSpot ? (
     <>
-      <div 
+      <div
         ref={detailRef}
         className="fixed left-[400px] top-20 bottom-8 w-96 bg-white rounded-lg shadow-2xl p-6 z-40 flex flex-col"
       >
+        {/* Header */}
         <div className="flex items-start justify-between mb-4 flex-shrink-0">
           <div>
             <h3 className="text-xl font-bold text-gray-800 mb-1">
-              {selectedEvent?.name}
+              {selectedSpot?.name}
             </h3>
-            <p className="text-sm text-gray-600">{selectedEvent?.description}</p>
+            <p className="text-sm text-gray-600">{selectedSpot?.description}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             ✕
           </button>
         </div>
 
+        {/* Spot Meta Info */}
         <div className="space-y-3 mb-4 flex-shrink-0">
           <div className="flex items-center gap-2 text-sm text-gray-600">
-            <TrendingUp size={16} className="text-green-600" />
-            <span className="font-medium">{selectedEvent?.status}</span>
-            {selectedEvent?.start_time && (
-              <>
-                <span>•</span>
-                <span>{new Date(selectedEvent.start_time).toLocaleDateString('en-GB')}</span>
-              </>
+            <span className={`px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800' `}>
+              {'Permanent Spot'}
+            </span>
+            {selectedSpot.category && (
+              <span className="px-2 py-1 text-xs font-medium rounded bg-gray-500 text-white capitalize">
+                {selectedSpot.category}
+              </span>
             )}
           </div>
-
-          {selectedEvent?.spot_id && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-               <MapPin size={16} className="text-blue-600" />
-               <span className="font-medium">
-                 At: {selectedEvent.spot_name || `Spot #${selectedEvent.spot_id}`}
-               </span>
-            </div>
-          )}
-          
-          {selectedEvent?.category && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span className="px-2 py-1 text-xs font-medium rounded bg-gray-500 text-white">
-                {selectedEvent.category}
-              </span>
-            </div>
-          )}
         </div>
 
+        {/* Actions */}
         <div className="flex gap-3 mb-4 flex-shrink-0">
           <button
             onClick={() => setShowAddReport(true)}
@@ -179,13 +165,13 @@ export default function EventDetail() {
           >
             {token ? "Add Report" : "Login to Add Report"}
           </button>
-          {selectedEvent.external_link && (
+          {selectedSpot.external_link && (
             <a
-              href={selectedEvent.external_link}
+              href={selectedSpot.external_link}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 bg-white text-gray-700 border-2 border-gray-300 px-3 py-2.5 rounded-lg hover:border-gray-400 hover:shadow-md transition-all font-medium text-sm"
-              title="Open Event Link"
+              title="Open Website"
             >
               <ExternalLink size={18} />
             </a>
@@ -196,15 +182,14 @@ export default function EventDetail() {
           </button>
         </div>
 
+        {/* Reports List */}
         <div className="flex-1 overflow-hidden">
           <h4 className="text-sm font-semibold text-gray-700 mb-2">
             Recent Reports {!loading && `(${reports.length})`}
           </h4>
           <div className="space-y-2 h-full overflow-y-auto">
             {loading ? (
-              <div className="text-center py-4 text-gray-500 text-sm">
-                Loading reports...
-              </div>
+              <div className="text-center py-4 text-gray-500 text-sm">Loading reports...</div>
             ) : reports.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <p className="text-sm">No reports yet</p>
@@ -230,11 +215,11 @@ export default function EventDetail() {
                         <button
                           onClick={() => handleFlagReport(report.id)}
                           className="text-gray-400 hover:text-red-600 p-1"
-                          aria-label="Report inappropriate content"
+                          aria-label="Report"
                         >
                           <Flag size={14} />
                         </button>
-                        <div className="absolute right-0 top-full mt-1 px-3 py-1.5 bg-white rounded-lg shadow-md text-xs text-gray-700 font-medium whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity duration-200 z-50 pointer-events-none">
+                        <div className="absolute right-0 top-full mt-1 px-3 py-1.5 bg-white rounded-lg shadow-md text-xs text-gray-700 font-medium whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-50">
                           Report inappropriate content
                         </div>
                       </div>
@@ -243,11 +228,7 @@ export default function EventDetail() {
                   <p className="text-sm text-gray-700">{report.description}</p>
                   {report.picture && (
                     <div className="mt-2">
-                      <img
-                        src={report.picture}
-                        alt="Report"
-                        className="w-full h-32 object-cover rounded"
-                      />
+                      <img src={report.picture} alt="Report" className="w-full h-32 object-cover rounded" />
                     </div>
                   )}
                 </div>
@@ -260,12 +241,11 @@ export default function EventDetail() {
       <AddReportModal
         isOpen={showAddReport}
         onClose={() => setShowAddReport(false)}
-        eventId={selectedEvent.id}
-        eventCategory={selectedEvent.category}
+        spotId={selectedSpot.id}
         onReportAdded={handleReportAdded}
       />
 
-      <FlagReportModal 
+      <FlagReportModal
         isOpen={!!reportToFlag}
         reportId={reportToFlag}
         onClose={() => setReportToFlag(null)}
@@ -274,4 +254,3 @@ export default function EventDetail() {
     </>
   ) : null;
 }
-

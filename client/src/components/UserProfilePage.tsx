@@ -358,6 +358,7 @@ const UserProfilePage = () => {
 
     const term = searchTerm.toLowerCase();
     return items.filter((item) => {
+      if (item.id.toString().includes(term)) return true;
       if ('name' in item && item.name?.toLowerCase().includes(term)) return true;
       if ('description' in item && item.description?.toLowerCase().includes(term)) return true;
       if ('category' in item && item.category?.toLowerCase().includes(term)) return true;
@@ -721,7 +722,7 @@ const UserProfilePage = () => {
                         {event.spot_id && (
                           <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">
                             {spotNames[event.spot_id] ? (
-                              `At Spot: ${spotNames[event.spot_id]}`
+                              `At Spot: ${event.spot_name || spotNames[event.spot_id] || `#${event.spot_id}`}`
                             ) : (
                               <span className="flex items-center gap-1">
                                 <span className="inline-block w-2 h-2 border-2 border-blue-700 border-t-transparent rounded-full animate-spin"></span>
@@ -928,7 +929,7 @@ const UserProfilePage = () => {
                         {event.spot_id && (
                           <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">
                             {spotNames[event.spot_id] ? (
-                              `At Spot: ${spotNames[event.spot_id]}`
+                              `At Spot: ${event.spot_name || spotNames[event.spot_id] || `#${event.spot_id}`}`
                             ) : (
                               <span className="flex items-center gap-1">
                                 <span className="inline-block w-2 h-2 border-2 border-blue-700 border-t-transparent rounded-full animate-spin"></span>
