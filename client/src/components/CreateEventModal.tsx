@@ -66,11 +66,15 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
   const API_URL =
     import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "http://127.0.0.1:8000";
 
-  // Fetch approved spots for dropdown
+  // Fetch approved spots for dropdown with server-side search
   const { data: spotsData } = useQuery({
-    queryKey: ["spots-for-event"],
+    queryKey: ["spots-for-event", spotSearchTerm],
     queryFn: async () => {
-      const response = await fetch(`${API_URL}/api/spots/?is_approved=true`);
+      let url = `${API_URL}/api/spots/?is_approved=true&limit=100`;
+      if (spotSearchTerm) {
+        url += `&search=${encodeURIComponent(spotSearchTerm)}`;
+      }
+      const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch spots");
       return response.json();
     },
@@ -79,11 +83,8 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
 
   const spots = spotsData?.spots || [];
 
-  // Filter spots based on search term
-  const filteredSpots = spots.filter((spot: any) =>
-    spot.name.toLowerCase().includes(spotSearchTerm.toLowerCase()) ||
-    spot.category.toLowerCase().includes(spotSearchTerm.toLowerCase())
-  );
+  // No need for client-side filtering anymore - backend handles it
+  const filteredSpots = spots;
 
   // Get selected spot details
   const selectedSpot = spots.find((spot: any) => spot.id === selectedSpotId);
@@ -385,11 +386,24 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
                   onBlur={formik.handleBlur}
                 >
                   <option value="">Select a category</option>
-                  {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
-                    </option>
-                  ))}
+                  <option value="beach">Beach</option>
+                  <option value="restaurant">Restaurant</option>
+                  <option value="cafe">Cafe</option>
+                  <option value="bar">Bar</option>
+                  <option value="park">Park</option>
+                  <option value="shopping">Shopping</option>
+                  <option value="parking">Parking</option>
+                  <option value="theatre">Theatre</option>
+                  <option value="cinema">Cinema</option>
+                  <option value="arts_centre">Arts Centre</option>
+                  <option value="community_centre">Community Centre</option>
+                  <option value="conference_centre">Conference Centre</option>
+                  <option value="attraction">Attraction</option>
+                  <option value="stadium">Stadium</option>
+                  <option value="sports_centre">Sports Centre</option>
+                  <option value="museum">Museum</option>
+                  <option value="gallery">Gallery</option>
+                  <option value="other">Other</option>
                 </select>
                 {formik.errors.category && formik.touched.category && (
                   <p className="mt-1 text-sm text-red-600">{formik.errors.category}</p>

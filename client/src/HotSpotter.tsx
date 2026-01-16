@@ -38,14 +38,6 @@ const HotSpotter = () => {
   );
   const dispatch = useDispatch();
 
-  const categories = [
-    { id: "all", name: "All", icon: "🗺️", color: "bg-gray-500" },
-    { id: "beach", name: "Beach", icon: "🏖️", color: "bg-blue-500" },
-    { id: "parking", name: "Parking", icon: "🅿️", color: "bg-purple-500" },
-    { id: "sports", name: "Sports", icon: "⚽", color: "bg-green-500" },
-    { id: "traffic", name: "Traffic", icon: "🚗", color: "bg-red-500" },
-  ];
-
   const eventsFromStore = useSelector(
     (state: RootState) => state.events.events
   );
@@ -81,7 +73,6 @@ const HotSpotter = () => {
       ) : (
         <div className="flex flex-1 overflow-hidden">
           <Sidebar
-            categories={categories}
             events={eventsList}
             isLoading={eventsLoading}
             error={eventsError}

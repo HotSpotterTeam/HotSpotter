@@ -1,5 +1,5 @@
 import React from "react";
-import { MapPin, User, LayoutDashboard } from "lucide-react";
+import { MapPin, User, LayoutDashboard, Calendar, CircleDot } from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../state/store";
 import { useAppSelector } from "../store/hooks";
@@ -43,14 +43,16 @@ const TopBar = () => {
         <div className="absolute left-80 ml-4 flex items-center gap-3">
           <button
             onClick={() => dispatch(setShowCreateEvent(true))}
-            className="bg-white text-gray-700 border-2 border-gray-300 px-5 py-2.5 rounded-lg hover:border-gray-400 hover:shadow-md transition-all font-medium text-sm"
+            className="flex items-center gap-2 bg-white text-orange-600 border-2 border-orange-500 px-5 py-2.5 rounded-lg hover:shadow-md transition-all font-medium text-sm"
           >
+            <Calendar size={18} />
             Create Event
           </button>
           <button
             onClick={() => dispatch(setShowCreateSpot(true))}
-            className="bg-white text-gray-700 border-2 border-gray-300 px-5 py-2.5 rounded-lg hover:border-gray-400 hover:shadow-md transition-all font-medium text-sm"
+            className="flex items-center gap-2 bg-white text-blue-600 border-2 border-blue-500 px-5 py-2.5 rounded-lg hover:shadow-md transition-all font-medium text-sm"
           >
+            <CircleDot size={18} />
             Create Spot
           </button>
         </div>

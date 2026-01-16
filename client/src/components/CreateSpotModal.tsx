@@ -243,38 +243,52 @@ export default function CreateSpotModal({ initialData, isOpen, onCloseOverride }
                 )}
               </div>
 
-              <div>
-                <label
-                  htmlFor="spot-category"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Category
-                </label>
-                <select
-                  id="spot-category"
-                  name="category"
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${formik.errors.category && formik.touched.category
-                      ? "border-red-500 focus:ring-red-500"
-                      : "border-gray-300 focus:ring-blue-500"
-                    }`}
-                  autoComplete="off"
-                  value={formik.values.category}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                >
-                  <option value="">Select a category</option>
-                  {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)} {/* Capitalize first letter */}
-                    </option>
-                  ))}
-                </select>
-                {formik.errors.category && formik.touched.category && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {formik.errors.category}
-                  </p>
-                )}
-              </div>
+          <div>
+            <label
+              htmlFor="spot-category"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Category
+            </label>
+            <select
+              id="spot-category"
+              name="category"
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                formik.errors.category && formik.touched.category
+                  ? "border-red-500 focus:ring-red-500"
+                  : "border-gray-300 focus:ring-blue-500"
+              }`}
+              autoComplete="off"
+              value={formik.values.category}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+            >
+              <option value="">Select a category</option>
+              <option value="beach">Beach</option>
+              <option value="restaurant">Restaurant</option>
+              <option value="cafe">Cafe</option>
+              <option value="bar">Bar</option>
+              <option value="park">Park</option>
+              <option value="shopping">Shopping</option>
+              <option value="parking">Parking</option>
+              <option value="theatre">Theatre</option>
+              <option value="cinema">Cinema</option>
+              <option value="arts_centre">Arts Centre</option>
+              <option value="community_centre">Community Centre</option>
+              <option value="conference_centre">Conference Centre</option>
+              <option value="attraction">Attraction</option>
+              <option value="stadium">Stadium</option>
+              <option value="sports_centre">Sports Centre</option>
+              <option value="museum">Museum</option>
+              <option value="gallery">Gallery</option>
+              <option value="other">Other</option>
+            </select>
+            {formik.errors.category && formik.touched.category && (
+              <p className="mt-1 text-sm text-red-600">
+                {formik.errors.category}
+              </p>
+            )}
+          </div>
 
               <div>
                 <label
