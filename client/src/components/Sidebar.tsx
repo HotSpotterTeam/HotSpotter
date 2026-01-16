@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setSelectedEvent, setSelectedSpot, setShowFilterPanel } from "../state/AppSlice";
 import { Event, Spot } from "../generated-types";
 import * as EventsApi from "../api/eventsApi"; // Import the new API file
+import * as SpotsApi from "../api/spotsApi"; // Import spots API
 import { useAppSelector } from "../store/hooks";
 import { useSpots } from "../queries";
 import { categoryIcons, categoryColors } from "../icons";
@@ -87,6 +88,7 @@ export default function Sidebar({
   // --- Search State ---
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<Event[]>([]);
+  const [spotSearchResults, setSpotSearchResults] = useState<Spot[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
@@ -97,6 +99,7 @@ export default function Sidebar({
     // If search is empty, clear results
     if (!searchTerm.trim()) {
       setSearchResults([]);
+      setSpotSearchResults([]);
       return;
     }
 
@@ -105,10 +108,15 @@ export default function Sidebar({
       setIsSearching(true);
       setSearchError(null);
       try {
-        const results = await EventsApi.searchEvents(searchTerm);
-        setSearchResults(results);
+        // Search both events and spots simultaneously
+        const [eventResults, spotResults] = await Promise.all([
+          EventsApi.searchEvents(searchTerm),
+          SpotsApi.searchSpots(searchTerm)
+        ]);
+        setSearchResults(eventResults);
+        setSpotSearchResults(spotResults);
       } catch (err: any) {
-        setSearchError("Failed to search events");
+        setSearchError("Failed to search events and spots");
         console.error(err);
       } finally {
         setIsSearching(false);
@@ -161,7 +169,7 @@ export default function Sidebar({
   // Determine what to display: Search Results OR Filtered Events/Spots
   const isSearchMode = searchTerm.trim().length > 0;
   const displayEvents = isSearchMode ? searchResults : sortedEvents;
-  const displaySpots = filteredSpots;
+  const displaySpots = isSearchMode ? spotSearchResults : filteredSpots;
   const displayItems = viewMode === "events" ? displayEvents : displaySpots;
   const isLoading = isSearchMode ? isSearching : isNearbyLoading;
   const error = isSearchMode ? (searchError ? { message: searchError } : null) : nearbyError;
@@ -170,6 +178,12 @@ export default function Sidebar({
     : viewMode === "events" 
       ? "Nearby Events" 
       : "Nearby Spots";
+  
+  // Calculate total results when searching
+  const totalSearchResults = isSearchMode ? (searchResults.length + spotSearchResults.length) : displayItems.length;
+  
+  // Check if we have any results in search mode
+  const hasAnySearchResults = isSearchMode && (searchResults.length > 0 || spotSearchResults.length > 0);
 
   return (
     <div className="w-96 bg-white shadow-lg flex flex-col z-10 h-full">
@@ -179,7 +193,7 @@ export default function Sidebar({
           <SearchIcon size={18} className="absolute left-3 text-gray-400" />
           <input
             type="text"
-            placeholder="Search events or locations..."
+            placeholder="Search events or spots..."
             className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -250,7 +264,7 @@ export default function Sidebar({
               {listTitle}
             </h2>
             <span className="text-sm text-gray-500">
-              {displayItems.length} found
+              {isSearchMode ? `${totalSearchResults} found` : `${displayItems.length} found`}
             </span>
           </div>
 
@@ -265,11 +279,136 @@ export default function Sidebar({
             <div className="flex items-center justify-center py-8">
               <div className="text-center">
                 <p className="text-sm text-red-600 mb-1">
-                  Error loading events
+                  Error loading {isSearchMode ? "results" : viewMode}
                 </p>
                 <p className="text-xs text-gray-500">{error.message}</p>
               </div>
             </div>
+          ) : isSearchMode ? (
+            // Search mode: show events and spots in sections
+            !hasAnySearchResults ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-center">
+                  <p className="text-sm text-gray-500">
+                    No events or spots found
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Try adjusting your search terms
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Events Section */}
+                {searchResults.length > 0 && (
+                  <div>
+                    <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <Calendar size={18} className="text-orange-600" />
+                      Events ({searchResults.length})
+                    </h3>
+                    <div className="space-y-3">
+                      {searchResults.map((event: Event) => {
+                        const bgColor = categoryColors[event.category] || categoryColors.default;
+                        return (
+                          <div
+                            key={event.id}
+                            onClick={() => onSelectEvent(event)}
+                            className="p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md border-gray-200 bg-white hover:border-orange-300"
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="flex items-center justify-center">
+                                  <div className="sidebar-event-icon-box">
+                                    <Calendar size={20} color='black' strokeWidth={2.5} />
+                                  </div>
+                                </span>
+                                <div>
+                                  <h3 className="font-semibold text-gray-800">
+                                    {event.name}
+                                  </h3>
+                                  {event.spot_id && spots && (
+                                    <p className="text-xs text-gray-600 mt-0.5">
+                                      at: {spots.find(s => s.id === event.spot_id)?.name || 'Unknown Spot'}
+                                    </p>
+                                  )}
+                                  <p className="text-sm text-gray-500 line-clamp-1">
+                                    {event.description}
+                                  </p>
+                                </div>
+                              </div>
+                              <span 
+                                className="px-2 py-1 text-xs font-medium rounded bg-white border-2"
+                                style={{ borderColor: bgColor, color: bgColor }}
+                              >
+                                {event.category}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between text-sm text-gray-600 mt-2">
+                              <div className="flex items-center gap-3">
+                                <span className="flex items-center gap-1 text-green-600">
+                                  Start: {new Date(event.start_time).toLocaleDateString('en-GB')}
+                                </span>
+                                <span className="flex items-center gap-1 capitalize">
+                                  {event.status}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Spots Section */}
+                {spotSearchResults.length > 0 && (
+                  <div>
+                    <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <CircleDot size={18} className="text-blue-600" />
+                      Spots ({spotSearchResults.length})
+                    </h3>
+                    <div className="space-y-3">
+                      {spotSearchResults.map((spot: Spot) => {
+                        const IconComponent = categoryIcons[spot.category as keyof typeof categoryIcons] || categoryIcons.other;
+                        const bgColor = categoryColors[spot.category] || categoryColors.default;
+                        return (
+                          <div
+                            key={spot.id}
+                            onClick={() => onSelectSpot(spot)}
+                            className="p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md border-gray-200 bg-white hover:border-blue-300"
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="flex items-center justify-center">
+                                  <div className="sidebar-event-icon-box" style={{ borderRadius: '50%' }}>
+                                    <IconComponent size={20} color='black' strokeWidth={2.5} />
+                                  </div>
+                                </span>
+                                <div>
+                                  <h3 className="font-semibold text-gray-800">
+                                    {spot.name}
+                                  </h3>
+                                  <p className="text-sm text-gray-500 line-clamp-1">
+                                    {spot.description}
+                                  </p>
+                                </div>
+                              </div>
+                              <span 
+                                className="px-2 py-1 text-xs font-medium rounded bg-white border-2"
+                                style={{ borderColor: bgColor, color: bgColor }}
+                              >
+                                {spot.category}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
           ) : displayItems.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <div className="text-center">
@@ -277,7 +416,7 @@ export default function Sidebar({
                   No {viewMode} found
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
-                  {isSearchMode ? "Try adjusting your search terms" : "Try changing the map view or filters"}
+                  Try changing the map view or filters
                 </p>
               </div>
             </div>
