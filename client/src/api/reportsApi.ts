@@ -84,7 +84,9 @@ export const updateReport = async (
 // Flag a report as inappropriate
 export const flagReport = async (
   token: string,
-  reportId: number
+  reportId: number,
+  category: string, // <--- Added parameter
+  reason: string    // <--- Added parameter
 ): Promise<void> => {
   const response = await fetch(`${API_URL}/api/reports/${reportId}/flag`, {
     method: "POST",
@@ -92,6 +94,7 @@ export const flagReport = async (
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
+    body: JSON.stringify({ category, reason }),
   });
 
   if (!response.ok) {

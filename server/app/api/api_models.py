@@ -31,6 +31,7 @@ class CreateEvent(BaseModel):
     start_time: str
     end_time: str
     category: str
+    external_link: Optional[str] = None
     spot_id: Optional[int] = None
     custom_location: Optional[List[float]] = None
 
@@ -54,10 +55,22 @@ class Event(BaseModel):
     start_time: str
     end_time: str
     category: str
+    external_link: Optional[str] = None
     status: str
     spot_id: Optional[int] = None
+    spot_name: Optional[str] = None
     owner_id: Optional[int] = None  # Optional to handle legacy data, but should always be set for new events
 
+class CreateReportFlag(BaseModel):
+    category: str
+    reason: Optional[str] = None
+
+class ReportFlag(BaseModel):
+    id: int
+    user_id: int
+    category: str
+    reason: Optional[str] = None
+    created_at: Optional[str] = None
 
 class Report(BaseModel):
     id: int
@@ -72,6 +85,7 @@ class Report(BaseModel):
     status: str
     is_flagged: bool
     score: Optional[int] = None
+    flags: List[ReportFlag] = []
 
 class CreateReport(BaseModel):
     description: str
@@ -102,6 +116,7 @@ class SpotResponse(BaseModel):
     category: str
     location: list[float]  # [lat, lng]
     address: str | None
+    external_link: str | None
     spot_type: str
     permanence_reason: str | None
     source: str
@@ -132,6 +147,7 @@ class CreateSpot(BaseModel):
     category: str
     location: list[float]  # [lat, lng]
     address: str | None = None
+    external_link: str | None = None
     spot_type: str = 'permanent'  # 'permanent' or 'temporary'
     permanence_reason: str | None = None
     expires_at: datetime | None = None
@@ -143,6 +159,7 @@ class UpdateSpot(BaseModel):
     category: str | None = None
     location: list[float] | None = None
     address: str | None = None
+    external_link: str | None = None
     spot_type: str | None = None
     permanence_reason: str | None = None
     expires_at: datetime | None = None
@@ -151,6 +168,7 @@ class UpdateEvent(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     category: Optional[str] = None
+    external_link: Optional[str] = None
     start_time: Optional[str] = None
     end_time: Optional[str] = None
 

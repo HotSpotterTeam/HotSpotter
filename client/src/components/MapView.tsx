@@ -117,7 +117,7 @@ type Spot = {
 export default function MapView({
   onSelectSpot,
 }: {
-  onSelectSpot: (event: any) => void;
+  onSelectSpot: (item: any, type: "spot" | "event") => void;
 }) {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapInstance, setMapInstance] = useState<any>(null);
@@ -221,20 +221,8 @@ export default function MapView({
                 key={`spot-${spot.id}`}
                 position={[spot.location[0], spot.location[1]]}
                 icon={markerIcon}
-                eventHandlers={{ click: () => onSelectSpot(spot) }}
+                eventHandlers={{ click: () => onSelectSpot(spot, "spot") }}
               >
-                <Popup>
-                  <div>
-                    <strong>{spot.name}</strong>
-                    <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Spot</span>
-                    {spot.description && (
-                      <div className="text-sm text-gray-600">{spot.description}</div>
-                    )}
-                    <div className="text-xs text-gray-500 mt-1">
-                      {spot.category} • {spot.spot_type}
-                    </div>
-                  </div>
-                </Popup>
               </Marker>
             );
           });
@@ -250,20 +238,8 @@ export default function MapView({
               position={[event.location[0], event.location[1]]}
               icon={eventIcon}
               zIndexOffset={1000}
-              eventHandlers={{ click: () => onSelectSpot(event) }}
+              eventHandlers={{ click: () => onSelectSpot(event, "event") }}
             >
-              <Popup>
-                <div>
-                  <strong>{event.name}</strong>
-                  <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Event</span>
-                  {event.description && (
-                    <div className="text-sm text-gray-600">{event.description}</div>
-                  )}
-                  <div className="text-xs text-gray-500 mt-1">
-                    {event.category} • {event.date}
-                  </div>
-                </div>
-              </Popup>
             </Marker>
           ));
         })()}

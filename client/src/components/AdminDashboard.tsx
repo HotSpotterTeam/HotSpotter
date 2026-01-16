@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { 
   Users, MapPin, Calendar, Flag, Trash2, CheckCircle, 
-  Shield, ShieldAlert, BarChart3, Search
+  Shield, ShieldAlert, BarChart3, Search, ShieldCheck,
+  PieChart as PieChartIcon
 } from "lucide-react";
 import { useAppSelector } from "../store/hooks";
 import { StatData, User, Spot, Event, Report } from "../generated-types";
+import AdminMetricsTab from "./AdminMetricsTab";
 
 // Import the API functions
 import * as AdminApi from "../api/adminApi";
 
 const AdminDashboard = () => {
   const { token } = useAppSelector((state) => state.auth);
-  const [activeTab, setActiveTab] = useState<"overview" | "users" | "spots" | "events" | "reports">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "users" | "spots" | "events" | "reports" | "metrics">("overview");
   // --- PAGINATION STATE ---
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -131,10 +133,23 @@ const AdminDashboard = () => {
   }, [activeTab, token, page]);
 
   // 2. Filter Changes
-  useEffect(() => { if (activeTab === "users") loadUsers(); }, [searchTerm, onlyAdmins]);
-  useEffect(() => { if (activeTab === "spots") loadSpots(); }, [searchTerm, spotFilter]);
-  useEffect(() => { if (activeTab === "events") loadEvents(); }, [searchTerm, eventFilter]);
+  useEffect(() => {
+    if (activeTab === "users") {
+      if (page === 1) loadUsers(); else setPage(1);
+    }
+  }, [searchTerm, onlyAdmins]);
 
+  useEffect(() => {
+    if (activeTab === "spots") {
+      if (page === 1) loadSpots(); else setPage(1);
+    }
+  }, [searchTerm, spotFilter]);
+
+  useEffect(() => {
+    if (activeTab === "events") {
+      if (page === 1) loadEvents(); else setPage(1);
+    }
+  }, [searchTerm, eventFilter]);
 
   // --- Action Handlers ---
 
@@ -183,6 +198,16 @@ const AdminDashboard = () => {
        await AdminApi.dismissReport(token, id);
        setReports(reports.filter(r => r.id !== id));
      } catch (err: any) { alert("Failed to dismiss report"); }
+  };
+
+  const handleDeleteReport = async (id: number) => {
+    if (!window.confirm("Are you sure you want to permanently delete this report?")) return;
+    try {
+      await AdminApi.deleteReport(token, id);
+      setReports(reports.filter(r => r.id !== id));
+    } catch (err: any) { 
+      alert(err.message || "Failed to delete report"); 
+    }
   };
 
   // --- Render Helpers ---
@@ -241,7 +266,8 @@ const AdminDashboard = () => {
         <TabButton id="users" label="Users" icon={Users} />
         <TabButton id="spots" label="Spots" icon={MapPin} />
         <TabButton id="events" label="Events" icon={Calendar} />
-        <TabButton id="reports" label="Reports" icon={Flag} />
+        <TabButton id="reports" label="Flagged Reports" icon={Flag} />
+        <TabButton id="metrics" label="Analytics" icon={PieChartIcon} />
       </div>
 
       {/* Main Content Area */}
@@ -426,7 +452,7 @@ const AdminDashboard = () => {
                   <Search className="text-gray-400" size={18} />
                   <input 
                     type="text" 
-                    placeholder="Search spots by name or category..." 
+                    placeholder="Search spots by id, name or category..." 
                     className="bg-transparent outline-none flex-1 text-sm"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -494,7 +520,7 @@ const AdminDashboard = () => {
                   <Search className="text-gray-400" size={18} />
                   <input 
                     type="text" 
-                    placeholder="Search events by name..." 
+                    placeholder="Search events by id or name..." 
                     className="bg-transparent outline-none flex-1 text-sm"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -544,8 +570,9 @@ const AdminDashboard = () => {
                     </td>
                     <td className="p-4 text-sm text-gray-500">
                         {event.spot_id ? (
-                            <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs border border-blue-100">
-                                Spot #{event.spot_id}
+                            <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs border border-blue-100 flex flex-col">
+                                <span className="font-medium">{event.spot_name || "Unknown Spot"}</span>
+                                <span className="text-[10px] opacity-75">ID: #{event.spot_id}</span>
                             </span>
                         ) : <span className="text-gray-400">-</span>}
                     </td>
@@ -567,30 +594,101 @@ const AdminDashboard = () => {
         {activeTab === "reports" && (
            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
             {reports.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">No flagged reports! Good job.</div>
+                <div className="p-12 text-center text-gray-500 flex flex-col items-center">
+                  <ShieldCheck size={48} className="text-green-500 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900">No Flagged Reports</h3>
+                  <p className="text-gray-400">Everything looks good!</p>
+                </div>
             ) : (
              <table className="w-full text-left">
               <thead className="bg-gray-50 text-gray-600 text-sm">
                 <tr>
-                  <th className="p-4">ID</th>
-                  <th className="p-4">Report Description</th>
-                  <th className="p-4">Linked To</th>
-                  <th className="p-4 text-right">Actions</th>
+                  <th className="p-4 w-16">ID</th>
+                  <th className="p-4">Report & Flags</th>
+                  <th className="p-4 w-40">Linked To</th>
+                  <th className="p-4 text-right w-40">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {reports?.map(report => (
-                  <tr key={report.id} className="hover:bg-gray-50">
-                    <td className="p-4 text-gray-500">#{report.id}</td>
-                    <td className="p-4 text-red-600 font-medium">{report.description}</td>
-                    <td className="p-4 text-sm text-gray-500">
-                        {report.spot_id ? `Spot #${report.spot_id}` : `Event #${report.event_id}`}
+                {reports?.map((report: any) => (
+                  <tr key={report.id} className="hover:bg-gray-50 align-top">
+                    <td className="p-4 text-gray-500 text-xs">#{report.id}</td>
+                    
+                    {/* EXPANDED CONTENT COLUMN */}
+                    <td className="p-4">
+                      {/* Original Report Content */}
+                      <div className="mb-4">
+                         <div className="text-gray-900 font-medium text-lg">{report.description}</div>
+                         <div className="text-xs text-gray-500 mt-1">
+                            Reported by: <span className="font-medium text-gray-700">{report.user_name}</span> • Score: {report.score || '-'}
+                         </div>
+                         {report.picture && (
+                            <img src={report.picture} alt="Report evidence" className="mt-2 h-20 w-20 object-cover rounded border border-gray-200" />
+                         )}
+                      </div>
+
+                      {/* List of Flags */}
+                      {report.flags && report.flags.length > 0 ? (
+                        <div className="bg-red-50 border border-red-100 rounded-lg p-3 space-y-3">
+                           <div className="text-xs font-bold text-red-800 uppercase tracking-wider flex items-center gap-2 border-b border-red-200 pb-2">
+                              <Flag size={12} /> Flagged {report.flags.length} time{report.flags.length !== 1 ? 's' : ''}
+                           </div>
+                           
+                           {/* Render each flag detail */}
+                           {report.flags.map((flag: any) => (
+                              <div key={flag.id} className="text-sm">
+                                 <div className="flex items-center gap-2 mb-1">
+                                    <span className="px-2 py-0.5 rounded-full bg-white border border-red-200 text-red-700 text-xs font-bold shadow-sm">
+                                      {flag.category}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                       User #{flag.user_id} • {new Date(flag.created_at).toLocaleDateString()}
+                                    </span>
+                                 </div>
+                                 {flag.reason && (
+                                    <div className="text-gray-800 pl-2 border-l-2 border-red-300 ml-1 italic text-sm">
+                                      "{flag.reason}"
+                                    </div>
+                                 )}
+                              </div>
+                           ))}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-400 italic">
+                          (Legacy flag: No details available)
+                        </div>
+                      )}
                     </td>
-                    <td className="p-4 text-right flex justify-end gap-2">
-                      <button onClick={() => handleDismissReport(report.id)} className="px-3 py-1 text-sm border rounded hover:bg-gray-50">
-                        Dismiss
-                      </button>
-                      {/* Note: To delete the content, we'd need to cross-reference the spot/event ID manually or add a dedicated API button */}
+
+                    {/* Linked Entity */}
+                    <td className="p-4 text-sm text-gray-500">
+                        {report.spot_id ? (
+                           <span className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs w-fit font-medium border border-blue-100">
+                              <MapPin size={12} /> Spot #{report.spot_id}
+                           </span>
+                        ) : (
+                           <span className="flex items-center gap-1 text-purple-600 bg-purple-50 px-2 py-1 rounded text-xs w-fit font-medium border border-purple-100">
+                              <Calendar size={12} /> Event #{report.event_id}
+                           </span>
+                        )}
+                    </td>
+
+                    {/* Actions */}
+                    <td className="p-4 text-right">
+                       <div className="flex flex-col gap-2 items-end">
+                          <button 
+                            onClick={() => handleDismissReport(report.id)} 
+                            className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded hover:bg-white hover:border-gray-400 hover:text-gray-900 text-gray-600 w-full md:w-auto transition-colors bg-white shadow-sm"
+                          >
+                            Dismiss Flags
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteReport(report.id)} 
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-red-50 text-red-700 border border-red-200 rounded hover:bg-red-100 hover:border-red-300 w-full md:w-auto justify-center transition-colors shadow-sm" 
+                          >
+                            <Trash2 size={12} /> Delete Report
+                          </button>
+                       </div>
                     </td>
                   </tr>
                 ))}
@@ -599,6 +697,11 @@ const AdminDashboard = () => {
             )}
             <Pagination />
           </div>
+        )}
+        
+        {/* TAB 6: METRICS */}
+        {activeTab === "metrics" && (
+           <AdminMetricsTab />
         )}
       </div>
     </div>
