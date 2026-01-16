@@ -13,7 +13,6 @@ import { useAppSelector } from "../store/hooks";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import SpotCreatedSuccess from "./SpotCreatedSuccess";
-import { getCategories } from "../api/utilsApi";
 
 interface CreateSpotModalProps {
   initialData?: any;
@@ -46,7 +45,6 @@ export default function CreateSpotModal({ initialData, isOpen, onCloseOverride }
   const { token } = useAppSelector((state) => state.auth);
   const [locationError, setLocationError] = React.useState<string>("");
   const [showSuccess, setShowSuccess] = React.useState(false);
-  const [categories, setCategories] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     if (initialData && showCreateSpot) {
@@ -69,19 +67,7 @@ export default function CreateSpotModal({ initialData, isOpen, onCloseOverride }
     }
   }, [initialData, showCreateSpot]);
 
-  React.useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const cats = await getCategories();
-        setCategories(cats);
-      } catch (err) {
-        console.error("Failed to load categories", err);
-      }
-    };
-    if (showCreateSpot) {
-      fetchCategories();
-    }
-  }, [showCreateSpot]);
+
 
   const createSpotMutation = useMutation({
     mutationFn: async (data: {

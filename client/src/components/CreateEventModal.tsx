@@ -12,7 +12,6 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "../store/hooks";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { getCategories } from "../api/utilsApi";
 
 interface CreateEventModalProps {
   initialData?: any;
@@ -61,7 +60,6 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
   const [spotSearchTerm, setSpotSearchTerm] = useState("");
   const [showSpotDropdown, setShowSpotDropdown] = useState(false);
   const [createdEvent, setCreatedEvent] = useState<any>(null);
-  const [categories, setCategories] = useState<string[]>([]);
 
   const API_URL =
     import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "http://127.0.0.1:8000";
@@ -117,20 +115,6 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
       }
     }
   }, [initialData, showCreateEvent]);
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const cats = await getCategories();
-        setCategories(cats);
-      } catch (err) {
-        console.error("Failed to load categories", err);
-      }
-    };
-    if (showCreateEvent) {
-      fetchCategories();
-    }
-  }, [showCreateEvent]);
 
   const createEventMutation = useMutation({
     mutationFn: async (data: {

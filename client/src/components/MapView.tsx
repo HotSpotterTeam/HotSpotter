@@ -156,9 +156,11 @@ function CenterMapOnSpot() {
   const [highlightedSpotId, setHighlightedSpotId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (selectedSpot && selectedSpot.location && selectedSpot.location.length >= 2) {
-      const lat = selectedSpot.location[0];
-      const lng = selectedSpot.location[1];
+    const spot = selectedSpot as any;
+
+    if (spot && spot.location && spot.location.length >= 2) {
+      const lat = spot.location[0];
+      const lng = spot.location[1];
       
       // Center map on spot location
       map.setView([lat, lng], 18, {
@@ -167,7 +169,7 @@ function CenterMapOnSpot() {
       });
       
       // Highlight the spot with cyan border
-      setHighlightedSpotId(selectedSpot.id);
+      setHighlightedSpotId(spot.id);
       
       // Remove highlight after 3 seconds
       const timer = setTimeout(() => {
@@ -178,11 +180,11 @@ function CenterMapOnSpot() {
     }
   }, [selectedSpot, map]);
 
-  // Render cyan circle around highlighted spot
-  if (highlightedSpotId && selectedSpot && selectedSpot.location) {
+  const spot = selectedSpot as any;
+  if (highlightedSpotId && spot && spot.location) {
     const map = useMap();
     // Convert coordinate to pixel
-    const point = map.latLngToContainerPoint([selectedSpot.location[0], selectedSpot.location[1]]);
+    const point = map.latLngToContainerPoint([spot.location[0], spot.location[1]]);
     point.y -= 30;
     point.x -= 10;
     const adjustedLatLng = map.containerPointToLatLng(point);
@@ -383,7 +385,7 @@ export default function MapView({
               position={[event.location[0], event.location[1]]}
               icon={eventIcon}
               zIndexOffset={1000}
-              eventHandlers={{ click: () => onSelectSpot(event) }}
+              eventHandlers={{ click: () => onSelectSpot(event, "event") }}
             >
               <Popup>
                 <div>
