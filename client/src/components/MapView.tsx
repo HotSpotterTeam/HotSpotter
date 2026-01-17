@@ -21,17 +21,27 @@ import { setShowFilterPanel } from "../state/AppSlice";
 import type { TimeFilter } from "../state/AppSlice";
 import L from "leaflet";
 
+// Helper function to convert trending score to icon size
+function getIconSizeMultiplier(trendingScore?: number): number {
+  if (!trendingScore) return 1.0;
+  if (trendingScore <= 20) return 1.0;
+  if (trendingScore <= 40) return 1.25;
+  if (trendingScore <= 60) return 1.5;
+  if (trendingScore <= 80) return 1.75;
+  return 2.0;
+}
+
 // Time filtering helper function
 function filterEventsByTime(events: any[], timeFilter: TimeFilter) {
   if (timeFilter.type === "all") return events;
 
   const now = new Date();
-  now.setHours(0, 0, 0, 0); // Start of today
+  now.setHours(0, 0, 0, 0);
 
   return events.filter((event: any) => {
     const eventStart = new Date(event.start_time);
     const eventEnd = new Date(event.end_time);
-    
+
     switch (timeFilter.type) {
       case "today": {
         const endOfToday = new Date(now);
@@ -46,7 +56,6 @@ function filterEventsByTime(events: any[], timeFilter: TimeFilter) {
         return eventStart <= endOfTomorrow && eventEnd >= startOfTomorrow;
       }
       case "weekend": {
-        // Find next Saturday and Sunday
         const dayOfWeek = now.getDay();
         const daysUntilSaturday = dayOfWeek === 6 ? 0 : dayOfWeek === 0 ? 6 : 6 - dayOfWeek;
         const saturday = new Date(now);
@@ -82,19 +91,15 @@ function InvalidateMapSize({ onLoaded }: { onLoaded?: (v: boolean) => void }) {
       }
     };
 
-    // Check if map is already loaded by checking if it has tiles
-    // If tiles are already present, call onLoaded immediately
     const checkLoaded = () => {
       if (map.getContainer().querySelector(".leaflet-tile-loaded")) {
         callLoaded();
       }
     };
 
-    // Check immediately and after a short delay
     checkLoaded();
     const checkTimeout = setTimeout(checkLoaded, 100);
 
-    // Also listen for the load event in case it hasn't fired yet
     const onLoad = () => callLoaded();
     map.once("load", onLoad);
 
@@ -134,10 +139,8 @@ function CenterMapOnEvent() {
 
   useEffect(() => {
     if (selectedEvent && selectedEvent.location && selectedEvent.location.length >= 2) {
-      // Use the same format as in HotSpotter.tsx: location[0] = lat, location[1] = lng
       const lat = selectedEvent.location[0];
       const lng = selectedEvent.location[1];
-      // Center map on event location with a nice zoom level
       map.setView([lat, lng], 18, {
         animate: true,
         duration: 0.5,
@@ -161,21 +164,18 @@ function CenterMapOnSpot() {
     if (spot && spot.location && spot.location.length >= 2) {
       const lat = spot.location[0];
       const lng = spot.location[1];
-      
-      // Center map on spot location
+
       map.setView([lat, lng], 18, {
         animate: true,
         duration: 0.5,
       });
-      
-      // Highlight the spot with cyan border
+
       setHighlightedSpotId(spot.id);
-      
-      // Remove highlight after 3 seconds
+
       const timer = setTimeout(() => {
         setHighlightedSpotId(null);
       }, 3000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [selectedSpot, map]);
@@ -183,12 +183,11 @@ function CenterMapOnSpot() {
   const spot = selectedSpot as any;
   if (highlightedSpotId && spot && spot.location) {
     const map = useMap();
-    // Convert coordinate to pixel
     const point = map.latLngToContainerPoint([spot.location[0], spot.location[1]]);
     point.y -= 30;
     point.x -= 10;
     const adjustedLatLng = map.containerPointToLatLng(point);
-    
+
     return (
       <CircleMarker
         center={[adjustedLatLng.lat, adjustedLatLng.lng]}
@@ -207,7 +206,7 @@ function CenterMapOnSpot() {
 
 function CenterOnUserLocationHandler({ onMapReady }: { onMapReady: (map: any) => void }) {
   const map = useMap();
-  
+
   useEffect(() => {
     onMapReady(map);
   }, [map, onMapReady]);
@@ -215,46 +214,29 @@ function CenterOnUserLocationHandler({ onMapReady }: { onMapReady: (map: any) =>
   return null;
 }
 
-type Spot = {
-  id: number;
-  title: string;
-  description?: string;
-  lat: number;
-  lng: number;
-};
-
 export default function MapView({
   onSelectSpot,
+  onChooseLocation,
 }: {
-  onSelectSpot: (item: any, type: "spot" | "event") => void;
+  onSelectSpot: (spot: any, type: "spot" | "event") => void;
+  onChooseLocation?: { enabled: boolean; callback: (lat: number, lng: number) => void } | null;
 }) {
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [currentUserLocation, setCurrentUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [mapInstance, setMapInstance] = useState<any>(null);
   const dispatch = useDispatch();
-  const { isAuthenticated } = useAppSelector((state) => state.auth);
-  const onChooseLocation = useAppSelector(
-    (state: RootState) => state.app.onChooseLocation
-  );
-  const currentUserLocation = useAppSelector(
-    (state: RootState) => state.app.currentUserLocation
-  );
-  const showFilterPanel = useAppSelector(
-    (state: RootState) => state.app.showFilterPanel
-  );
-  const mapFilters = useAppSelector(
-    (state: RootState) => state.app.mapFilters
-  );
+  const mapFilters = useAppSelector((state) => state.app.mapFilters);
+  const showFilterPanel = useAppSelector((state) => state.app.showFilterPanel);
 
   const handleCenterOnLocation = () => {
     if (!mapInstance) return;
-    
+
     if (currentUserLocation) {
       mapInstance.setView([currentUserLocation.lat, currentUserLocation.lng], 16, {
         animate: true,
         duration: 0.5,
       });
     } else {
-      // If location is not available, request it
       mapInstance.locate({
         enableHighAccuracy: true,
         watch: false,
@@ -268,59 +250,36 @@ export default function MapView({
     dispatch(setShowFilterPanel(!showFilterPanel));
   };
 
-  const hasActiveFilters = 
-    mapFilters.spotCategories.length > 0 || 
+  const hasActiveFilters =
+    mapFilters.spotCategories.length > 0 ||
     mapFilters.eventCategories.length > 0 ||
     mapFilters.timeFilter.type !== "all";
 
-  
-  // Get events from Redux
+
   const events = useSelector((state: RootState) => state.events.events);
 
-  // Fetch spots based on current map bounds
   const { spots, total, isPending: spotsLoading, fetchCheck } = useSpots();
   useEvents();
-  
-  // Apply filters to spots
+
   const filteredSpots = spots?.filter((spot) => {
     if (mapFilters.spotCategories.length === 0) return true;
     return mapFilters.spotCategories.includes(spot.category || "default");
   });
 
-  // Filter out pending events (except for user profile and admin dashboard)
-  const nonPendingEvents = events?.filter((event: any) => event.status !== 'pending');
+  const nonPendingEvents = events?.filter((event: any) =>
+    event.status !== 'pending' && event.status !== 'completed'
+  );
 
-  // Apply category filter to events
   const categoryFilteredEvents = nonPendingEvents?.filter((event: any) => {
     if (mapFilters.eventCategories.length === 0) return true;
     return mapFilters.eventCategories.includes(event.category || "default");
   });
 
-  // Apply time filter to events
   const filteredEvents = filterEventsByTime(
     categoryFilteredEvents || [],
     mapFilters.timeFilter
   );
-  
-  // Custom icons for different marker types
-  const spotIcon = new L.Icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-  });
-  
-  const eventIcon = new L.Icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-  });
-  
+
   return (
     <div className="w-full h-full relative z-0">
       <MapContainer
@@ -351,70 +310,132 @@ export default function MapView({
           />
         )}
 
-        {/* Show spots if we should fetch them */}
-        {/* Memoize spot icons by category */}
-        {(() => {
-          const spotIconCache: Record<string, L.DivIcon> = {};
-          return fetchCheck.shouldFetch && filteredSpots?.map((spot) => {
-            const cat = spot.category || 'default';
-            if (!spotIconCache[cat]) {
-              const iconType = categoryIcons[cat] || categoryIcons.default;
-              const iconColor = categoryColors[cat] || categoryColors.default;
-              spotIconCache[cat] = createCustomIcon(iconType, iconColor);
-            }
-            const markerIcon = spotIconCache[cat];
-            return (
-              <Marker
-                key={`spot-${spot.id}`}
-                position={[spot.location[0], spot.location[1]]}
-                icon={markerIcon}
-                eventHandlers={{ click: () => onSelectSpot(spot, "spot") }}
-              >
-              </Marker>
-            );
-          });
-        })()}
+        {/* Show spots with trending-based icon sizes and clickable popups */}
+        {fetchCheck.shouldFetch && filteredSpots?.map((spot) => {
+          const cat = spot.category || 'default';
+          const IconComponent = categoryIcons[cat] || categoryIcons.default;
+          const iconColor = categoryColors[cat] || categoryColors.default;
 
-        {/* Show events */}
-        {/* Create eventIcon once for all event markers */}
-        {(() => {
-          const eventIcon = createCustomIcon(categoryIcons.event, '', { isEvent: true });
-          return fetchCheck.shouldFetch && filteredEvents?.map((event: any) => (
+          // Calculate icon size based on trending score
+          const trendingScore = spot.trending_score || 0;
+          const sizeMultiplier = getIconSizeMultiplier(trendingScore);
+          const finalSize = 20 * sizeMultiplier;
+
+          const icon = createCustomIcon(IconComponent, iconColor, finalSize);
+
+          return (
             <Marker
-              key={`event-${event.id}`}
-              position={[event.location[0], event.location[1]]}
-              icon={eventIcon}
-              zIndexOffset={1000}
-              eventHandlers={{ click: () => onSelectSpot(event, "event") }}
+              key={`spot-${spot.id}`}
+              position={[spot.location[0], spot.location[1]]}
+              icon={icon}
             >
               <Popup>
-                <div>
-                  <strong>{event.name}</strong>
-                  <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">Event</span>
-                  {event.description && (
-                    <div className="text-sm text-gray-600">{event.description}</div>
+                <div
+                  onClick={() => onSelectSpot(spot, "spot")}
+                  className="cursor-pointer hover:bg-gray-50 -m-3 p-3 rounded"
+                >
+                  <div className="font-bold text-base mb-1">{spot.name}</div>
+                  {spot.category && (
+                    <div className="text-xs text-gray-600 capitalize mb-2">{spot.category}</div>
                   )}
-                  <div className="text-xs text-gray-500 mt-1">
-                    {event.category} • {new Date(event.start_time).toLocaleDateString('en-GB')}
+                  {spot.description && (
+                    <div className="text-sm text-gray-700 mb-2">{spot.description}</div>
+                  )}
+                  {trendingScore > 0 && (
+                    <div className="text-xs text-blue-600 font-medium">
+                      🔥 Trending
+                    </div>
+                  )}
+                  <div className="text-xs text-blue-600 font-medium mt-2">
+                    Click to view details →
                   </div>
                 </div>
               </Popup>
             </Marker>
-          ));
-        })()}
+          );
+        })}
+
+        {/* Show events with trending-based icon sizes and colors */}
+        {fetchCheck.shouldFetch && filteredEvents?.map((event: any) => {
+          const cat = event.category || 'default';
+          const IconComponent = categoryIcons[cat] || categoryIcons.default;
+
+          // Calculate icon size based on trending score
+          const trendingScore = event.trending_score || 0;
+          const sizeMultiplier = getIconSizeMultiplier(trendingScore);
+          const finalSize = 20 * sizeMultiplier;
+
+          // Determine background color based on trending score
+          let backgroundColor = 'white';  // Unknown/no trending
+          if (trendingScore > 0 && trendingScore <= 30) {
+            backgroundColor = '#FCD34D';  // Yellow - low trending
+          } else if (trendingScore > 30 && trendingScore <= 60) {
+            backgroundColor = '#FB923C';  // Orange - medium trending
+          } else if (trendingScore > 60) {
+            backgroundColor = '#EF4444';  // Red - high trending
+          }
+
+          console.log(`Event ${event.id}: score=${trendingScore}, color=${backgroundColor}`);
+
+          const icon = createCustomIcon(IconComponent, backgroundColor, finalSize, { isEvent: true });
+
+          return (
+            <Marker
+              key={`event-${event.id}`}
+              position={[event.location[0], event.location[1]]}
+              icon={icon}
+              zIndexOffset={1000}
+            >
+              <Popup>
+                <div
+                  onClick={() => onSelectSpot(event, "event")}
+                  className="cursor-pointer hover:bg-gray-50 -m-3 p-3 rounded"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="font-bold text-base">{event.name}</div>
+                    <span className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded font-bold">
+                      EVENT
+                    </span>
+                  </div>
+                  {event.category && (
+                    <div className="text-xs text-gray-600 capitalize mb-2">{event.category}</div>
+                  )}
+                  {event.description && (
+                    <div className="text-sm text-gray-700 mb-2">{event.description}</div>
+                  )}
+                  {event.start_time && (
+                    <div className="text-xs text-gray-500 mb-2">
+                      📅 {new Date(event.start_time).toLocaleDateString('en-GB')}
+                    </div>
+                  )}
+                  {trendingScore > 0 && (
+                    <div className="text-xs font-medium mb-1">
+                      {trendingScore <= 30 && <span className="text-yellow-600"> Trending </span>}
+                      {trendingScore > 30 && trendingScore <= 60 && <span className="text-orange-600"> 🔥 Trending </span>}
+                      {trendingScore > 60 && <span className="text-red-600"> 🔥 Very Trending</span>}
+                    </div>
+                  )}
+                  <div className="text-xs text-blue-600 font-medium mt-2">
+                    Click to view details →
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
 
       {/* Filter Panel */}
       {showFilterPanel && <FilterPanel />}
 
-      {/* Filter button - top right */}
+      {/* Filter button */}
       <div className="absolute top-8 right-8 z-40 group">
         <button
           onClick={handleToggleFilter}
           data-filter-toggle
           className={`text-gray-700 p-4 rounded-full shadow-md hover:shadow-lg transition-all ${
-            hasActiveFilters 
-              ? "bg-blue-500 text-white border-2 border-blue-600" 
+            hasActiveFilters
+              ? "bg-blue-500 text-white border-2 border-blue-600"
               : "bg-white border-2 border-gray-300 hover:border-gray-400"
           }`}
         >
@@ -425,7 +446,7 @@ export default function MapView({
         </div>
       </div>
 
-      {/* Location button - always visible */}
+      {/* Location button */}
       <div className="absolute bottom-8 right-8 z-40 group">
         <button
           onClick={handleCenterOnLocation}

@@ -39,46 +39,53 @@ export const categoryColors: Record<string, string> = {
     cafe: '#ad8459ff',
     restaurant: '#F59E42',
     event: '#F43F5E',
-    // ...add more as needed
     default: '#64748B'
 };
 
 export const createCustomIcon = (
     IconComponent: any,
     color: string = '#3B82F6',
+    size: number = 20,
     options?: {
         isEvent?: boolean;
     }
 ) => {
     let style: React.CSSProperties;
-    let iconProps: any = { size: 14, color: 'white', strokeWidth: 2 };
+    let iconProps: any;
+
+    const iconSize = Math.round(size * 0.7);
+
     if (options?.isEvent) {
-        // Special style for event
+        // For events, use the color for both background and border
+        const eventBgColor = color || 'white';
         style = {
-            backgroundColor: 'white',
+            backgroundColor: eventBgColor,
             borderRadius: '8px',
-            width: '32px',
-            height: '32px',
+            width: `${size * 1.6}px`,
+            height: `${size * 1.6}px`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '2px solid black',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+            border: `3px solid ${eventBgColor}`,
+            boxShadow: '0 3px 10px rgba(0,0,0,0.4)',
+            outline: '2px solid black'
         };
-        iconProps = { size: 20, color: 'black', strokeWidth: 2.5 };
+        iconProps = { size: iconSize * 1.4, color: 'black', strokeWidth: 2.5 };
     } else {
         style = {
             backgroundColor: color,
             borderRadius: '50%',
-            width: '20px',
-            height: '20px',
+            width: `${size}px`,
+            height: `${size}px`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             border: '2px solid white',
             boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
         };
+        iconProps = { size: iconSize, color: 'white', strokeWidth: 2 };
     }
+
     const iconHtml = renderToString(
         React.createElement(
             'div',
@@ -86,11 +93,14 @@ export const createCustomIcon = (
             React.createElement(IconComponent, iconProps)
         )
     );
+
+    const totalSize = options?.isEvent ? size * 1.6 : size;
+
     return L.divIcon({
         html: iconHtml,
         className: options?.isEvent ? 'custom-marker-icon event-marker' : 'custom-marker-icon',
-        iconSize: options?.isEvent ? [48, 48] : [40, 40],
-        iconAnchor: options?.isEvent ? [6, 65] : [20, 40],
-        popupAnchor: [0, -40]
+        iconSize: [totalSize * 2, totalSize * 2],
+        iconAnchor: [totalSize, totalSize * 2],
+        popupAnchor: [0, -totalSize * 2]
     });
 };
