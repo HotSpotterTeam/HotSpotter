@@ -1,13 +1,19 @@
 from fastapi import APIRouter, status, Path, Query, Depends, HTTPException
 from sqlalchemy import desc
 from app.db import get_session
-from app.models import Report, User, Event, Spot, ReportFlag
+from app.models import Report, User, Event, Spot, ReportFlag, SpotFavorite, EventSubscription
 from app.api.api_models import ReportResponse, CreateReport, UpdateReport, Report as ReportModel, CreateReportFlag
 from app.api.auth_utils import get_current_user
 from typing import List, Optional
 from datetime import datetime
 from app.hs_logging import log_user_action, get_request_session_id
-from app.notification_utils import notify_report_flagged, notify_report_added_to_spot, notify_report_added_to_event
+from app.notification_utils import (
+    notify_report_flagged,
+    notify_report_added_to_spot,
+    notify_report_added_to_event,
+    notify_spot_favoriters_report_added,
+    notify_event_subscribers_report_added
+)
 
 router = APIRouter()
 
@@ -102,7 +108,42 @@ async def create_report(
                     owner_to_notify
                 )
 
+        # Notify spot favoriters about the new report
+        if report_data.spot_id:
+            spot_favoriters = session.query(SpotFavorite).filter(
+                SpotFavorite.spot_id == report_data.spot_id,
+                SpotFavorite.user_id != current_user.id
+            ).all()
+
+            if spot_favoriters:
+                favoriter_ids = [fav.user_id for fav in spot_favoriters]
+                spot = session.query(Spot).get(report_data.spot_id)
+                notify_spot_favoriters_report_added(
+                    new_report.id,
+                    report_data.spot_id,
+                    spot.name,
+                    favoriter_ids
+                )
+
+        # Notify event subscribers about the new report
+        if report_data.event_id:
+            event_subscribers = session.query(EventSubscription).filter(
+                EventSubscription.event_id == report_data.event_id,
+                EventSubscription.user_id != current_user.id
+            ).all()
+
+            if event_subscribers:
+                subscriber_ids = [sub.user_id for sub in event_subscribers]
+                event = session.query(Event).get(report_data.event_id)
+                notify_event_subscribers_report_added(
+                    new_report.id,
+                    report_data.event_id,
+                    event.name,
+                    subscriber_ids
+                )
+
         return {"status": "success", "data": new_report.to_api_model()}
+
 
 @router.get("/", status_code=status.HTTP_200_OK)
 async def list_reports(event_id: Optional[int] = Query(None),
@@ -122,7 +163,7 @@ async def list_reports(event_id: Optional[int] = Query(None),
 
         if is_flagged is not None:
             query = query.filter(Report.is_flagged == is_flagged)
-            
+
         reports = query.order_by(desc(Report.date), desc(Report.time)).all()
 
         # Convert to Pydantic models
@@ -141,10 +182,10 @@ async def get_report(id: int = Path(...)):
 
 @router.put("/{id}", status_code=status.HTTP_200_OK)
 async def update_report(
-    report_update: UpdateReport,
-    id: int = Path(...),
-    current_user: User = Depends(get_current_user),
-    request_session_id=Depends(get_request_session_id)
+        report_update: UpdateReport,
+        id: int = Path(...),
+        current_user: User = Depends(get_current_user),
+        request_session_id=Depends(get_request_session_id)
 ):
     with get_session() as session:
         report = session.query(Report).filter(Report.id == id).first()
@@ -158,7 +199,7 @@ async def update_report(
 
         # Store old data for logging
         old_data = report.to_api_model()
-        
+
         # Update fields
         update_data = report_update.model_dump(exclude_unset=True)
         for key, value in update_data.items():
@@ -166,7 +207,8 @@ async def update_report(
 
         session.commit()
         session.refresh(report)
-        log_user_action("update_report", current_user, new_data=report.to_api_model(), request_session_id=request_session_id, old_data=old_data)
+        log_user_action("update_report", current_user, new_data=report.to_api_model(),
+                        request_session_id=request_session_id, old_data=old_data)
         return {"status": "success", "data": {
             "id": report.id,
             "description": report.description,
@@ -177,9 +219,9 @@ async def update_report(
 
 @router.delete("/{id}", status_code=status.HTTP_200_OK)
 async def delete_report(
-    id: int = Path(...),
-    current_user: User = Depends(get_current_user),
-    request_session_id=Depends(get_request_session_id)
+        id: int = Path(...),
+        current_user: User = Depends(get_current_user),
+        request_session_id=Depends(get_request_session_id)
 ):
     with get_session() as session:
         report = session.query(Report).filter(Report.id == id).first()
@@ -194,7 +236,7 @@ async def delete_report(
 
         # Store deleted data for logging
         deleted_data = report.to_api_model()
-        
+
         session.delete(report)
         session.commit()
         log_user_action("delete_report", current_user, new_data=deleted_data, request_session_id=request_session_id)
@@ -226,7 +268,7 @@ async def flag_report(
         # 2. Update the parent report status if not already flagged
         if not report.is_flagged:
             report.is_flagged = True
-        
+
         session.commit()
 
         log_user_action("flag_report", current_user, new_data=report.to_api_model(),
@@ -241,9 +283,9 @@ async def flag_report(
 
 @router.delete("/{id}/flag", status_code=status.HTTP_200_OK)
 async def unflag_report(
-    id: int = Path(...),
-    current_user: User = Depends(get_current_user),
-    request_session_id=Depends(get_request_session_id)
+        id: int = Path(...),
+        current_user: User = Depends(get_current_user),
+        request_session_id=Depends(get_request_session_id)
 ):
     """Admin removes the flag (dismiss), approving the report"""
     with get_session() as session:
@@ -262,5 +304,6 @@ async def unflag_report(
         report.is_flagged = False
         session.commit()
 
-        log_user_action("unflag_report", current_user, new_data=report.to_api_model(), request_session_id=request_session_id)
+        log_user_action("unflag_report", current_user, new_data=report.to_api_model(),
+                        request_session_id=request_session_id)
         return {"status": "success", "message": "Flag removed"}

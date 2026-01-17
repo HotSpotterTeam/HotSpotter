@@ -102,3 +102,62 @@ def notify_report_added_to_event(report_id: int, event_id: int, event_name: str,
         message=f"Someone added a report to your event '{event_name}'. Check it out to see what they shared!",
         related_id=report_id
     )
+
+def notify_spot_favoriters_report_added(report_id: int, spot_id: int, spot_name: str, favoriter_ids: list):
+    """Notify all users who favorited a spot that a report was added."""
+    notifications = []
+    for user_id in favoriter_ids:
+        notification = create_notification(
+            user_id=user_id,
+            notification_type="report_on_favorited_spot",
+            title="New Report on Favorited Spot",
+            message=f"A new report was added to '{spot_name}' that you favorited.",
+            related_id=report_id
+        )
+        notifications.append(notification)
+    return notifications
+
+
+def notify_event_subscribers_report_added(report_id: int, event_id: int, event_name: str, subscriber_ids: list):
+    """Notify all users subscribed to an event that a report was added."""
+    notifications = []
+    for user_id in subscriber_ids:
+        notification = create_notification(
+            user_id=user_id,
+            notification_type="report_on_subscribed_event",
+            title="New Report on Subscribed Event",
+            message=f"A new report was added to '{event_name}' that you subscribed to.",
+            related_id=report_id
+        )
+        notifications.append(notification)
+    return notifications
+
+
+def notify_event_subscribers_event_ended(event_id: int, event_name: str, subscriber_ids: list):
+    """Notify all event subscribers that the event has ended."""
+    notifications = []
+    for user_id in subscriber_ids:
+        notification = create_notification(
+            user_id=user_id,
+            notification_type="subscribed_event_ended",
+            title="Subscribed Event Ended",
+            message=f"The event '{event_name}' that you subscribed to has ended.",
+            related_id=event_id
+        )
+        notifications.append(notification)
+    return notifications
+
+
+def notify_spot_favoriters_event_started(event_id: int, event_name: str, spot_name: str, favoriter_ids: list):
+    """Notify all spot favoriters that an event started at their favorited spot."""
+    notifications = []
+    for user_id in favoriter_ids:
+        notification = create_notification(
+            user_id=user_id,
+            notification_type="event_started_at_favorited_spot",
+            title="Event Started at Favorited Spot",
+            message=f"An event '{event_name}' has started at '{spot_name}' that you favorited.",
+            related_id=event_id
+        )
+        notifications.append(notification)
+    return notifications
