@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MapPin, Navigation, Flag, Star, ExternalLink } from "lucide-react";
+import { MapPin, Navigation, Flag, Star, ExternalLink, Heart } from "lucide-react";
 import { RootState } from "../state/store";
 import { useDispatch, useSelector } from "react-redux";
 import { setSelectedSpot } from "../state/AppSlice";
@@ -9,6 +9,7 @@ import { useAppSelector } from "../store/hooks";
 import AddReportModal from "./AddReportModal";
 import FlagReportModal from "./FlagReportModal";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export default function SpotDetail() {
   const selectedSpot = useSelector(
@@ -21,6 +22,8 @@ export default function SpotDetail() {
   const [loading, setLoading] = useState(false);
   const [showAddReport, setShowAddReport] = useState(false);
   const [reportToFlag, setReportToFlag] = useState<number | null>(null);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
   const detailRef = useRef<HTMLDivElement>(null);
 
   const onClose = () => {
@@ -28,7 +31,6 @@ export default function SpotDetail() {
     setShowAddReport(false);
   };
 
-  // Handle click outside to close
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -53,17 +55,70 @@ export default function SpotDetail() {
     };
   }, [selectedSpot]);
 
-  // Fetch reports when spot is selected
   useEffect(() => {
     if (selectedSpot?.id) {
       setLoading(true);
-      // Fetch reports for this spot (undefined for eventId)
       getReports(undefined, selectedSpot.id, undefined)
         .then(setReports)
         .catch(console.error)
         .finally(() => setLoading(false));
+
+      if (token) {
+        checkIfFavorited();
+      }
     }
-  }, [selectedSpot?.id]);
+  }, [selectedSpot?.id, token]);
+
+  const checkIfFavorited = async () => {
+    if (!token || !selectedSpot?.id) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/favorites/spots`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        const favorited = data.data.some((spot: any) => spot.id === selectedSpot.id);
+        setIsFavorited(favorited);
+      }
+    } catch (error) {
+      console.error('Error checking favorite status:', error);
+    }
+  };
+
+  const handleFavoriteToggle = async () => {
+    if (!token) {
+      alert("You must be logged in to favorite a spot");
+      return;
+    }
+
+    setFavoriteLoading(true);
+    try {
+      const endpoint = `${API_URL}/api/spots/${selectedSpot?.id}/favorite`;
+      const method = isFavorited ? 'DELETE' : 'POST';
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        setIsFavorited(!isFavorited);
+      } else {
+        const data = await response.json();
+        alert(data.detail || 'Failed to update favorite');
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      alert('Failed to update favorite');
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
 
   const handleFlagReport = (reportId: number) => {
     if (!token) {
@@ -74,8 +129,6 @@ export default function SpotDetail() {
   };
 
   const handleFlagSuccess = () => {
-    // Refresh the reports list to show any status changes (if applicable)
-    // or just to ensure data is fresh
     if (selectedSpot?.id) {
       getReports(undefined, selectedSpot.id, undefined)
         .then(setReports)
@@ -129,7 +182,6 @@ export default function SpotDetail() {
         ref={detailRef}
         className="fixed left-[400px] top-20 bottom-8 w-96 bg-white rounded-lg shadow-2xl p-6 z-40 flex flex-col"
       >
-        {/* Header */}
         <div className="flex items-start justify-between mb-4 flex-shrink-0">
           <div>
             <h3 className="text-xl font-bold text-gray-800 mb-1">
@@ -142,7 +194,6 @@ export default function SpotDetail() {
           </button>
         </div>
 
-        {/* Spot Meta Info */}
         <div className="space-y-3 mb-4 flex-shrink-0">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span className={`px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800' `}>
@@ -156,7 +207,6 @@ export default function SpotDetail() {
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex gap-3 mb-4 flex-shrink-0">
           <button
             onClick={() => setShowAddReport(true)}
@@ -165,6 +215,23 @@ export default function SpotDetail() {
           >
             {token ? "Add Report" : "Login to Add Report"}
           </button>
+
+          <button
+            onClick={handleFavoriteToggle}
+            disabled={!token || favoriteLoading}
+            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg transition-all font-medium text-sm border-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+              isFavorited
+                ? 'bg-red-500 text-white border-red-500 hover:bg-red-600 hover:border-red-600'
+                : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:shadow-md'
+            }`}
+            title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+          >
+            <Heart
+              size={18}
+              className={isFavorited ? 'fill-current' : ''}
+            />
+          </button>
+
           {selectedSpot.external_link && (
             <a
               href={selectedSpot.external_link}
@@ -182,7 +249,6 @@ export default function SpotDetail() {
           </button>
         </div>
 
-        {/* Reports List */}
         <div className="flex-1 overflow-hidden">
           <h4 className="text-sm font-semibold text-gray-700 mb-2">
             Recent Reports {!loading && `(${reports.length})`}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { TrendingUp, Camera, Navigation, Flag, Star, ExternalLink, MapPin } from "lucide-react";
+import { TrendingUp, Camera, Navigation, Flag, Star, ExternalLink, MapPin, Bell } from "lucide-react";
 import { RootState } from "../state/store";
 import { useDispatch, useSelector } from "react-redux";
 import { setSelectedEvent } from "../state/AppSlice";
@@ -9,31 +9,34 @@ import { useAppSelector } from "../store/hooks";
 import AddReportModal from "./AddReportModal";
 import FlagReportModal from "./FlagReportModal";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
 export default function EventDetail() {
   const selectedEvent = useSelector(
     (state: RootState) => state.app.selectedEvent
   );
   const dispatch = useDispatch();
   const { token } = useAppSelector((state) => state.auth);
-  
+
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddReport, setShowAddReport] = useState(false);
   const [reportToFlag, setReportToFlag] = useState<number | null>(null);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [subscribeLoading, setSubscribeLoading] = useState(false);
   const detailRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   const onClose = () => {
     dispatch(setSelectedEvent(null));
-    setShowAddReport(false); // Reset modal state when closing
+    setShowAddReport(false);
   };
 
-  // Handle click outside to close
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
       if (
-        detailRef.current && 
+        detailRef.current &&
         !detailRef.current.contains(target) &&
         !document.querySelector('[data-modal="add-report"]')?.contains(target) &&
         !document.getElementById('flag-modal-content')?.contains(target)
@@ -43,7 +46,6 @@ export default function EventDetail() {
     };
 
     if (selectedEvent) {
-      // Add listener with a slight delay to prevent immediate closing
       setTimeout(() => {
         document.addEventListener("mousedown", handleClickOutside);
       }, 100);
@@ -54,7 +56,6 @@ export default function EventDetail() {
     };
   }, [selectedEvent]);
 
-  // Fetch reports when event is selected
   useEffect(() => {
     if (selectedEvent?.id) {
       setLoading(true);
@@ -62,8 +63,63 @@ export default function EventDetail() {
         .then(setReports)
         .catch(console.error)
         .finally(() => setLoading(false));
+
+      if (token) {
+        checkIfSubscribed();
+      }
     }
-  }, [selectedEvent?.id]);
+  }, [selectedEvent?.id, token]);
+
+  const checkIfSubscribed = async () => {
+    if (!token || !selectedEvent?.id) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/subscriptions/events`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        const subscribed = data.data.some((event: any) => event.id === selectedEvent.id);
+        setIsSubscribed(subscribed);
+      }
+    } catch (error) {
+      console.error('Error checking subscription status:', error);
+    }
+  };
+
+  const handleSubscribeToggle = async () => {
+    if (!token) {
+      alert("You must be logged in to subscribe to an event");
+      return;
+    }
+
+    setSubscribeLoading(true);
+    try {
+      const endpoint = `${API_URL}/api/events/${selectedEvent?.id}/subscribe`;
+      const method = isSubscribed ? 'DELETE' : 'POST';
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        setIsSubscribed(!isSubscribed);
+      } else {
+        const data = await response.json();
+        alert(data.detail || 'Failed to update subscription');
+      }
+    } catch (error) {
+      console.error('Error toggling subscription:', error);
+      alert('Failed to update subscription');
+    } finally {
+      setSubscribeLoading(false);
+    }
+  };
 
   const handleFlagReport = (reportId: number) => {
     if (!token) {
@@ -74,16 +130,15 @@ export default function EventDetail() {
   };
 
   const handleFlagSuccess = () => {
-  if (selectedEvent?.id) {
-     getReports(selectedEvent.id, undefined, undefined)
-      .then(setReports)
-      .catch(console.error);
-  }
-  alert("Report flagged for review. Thank you for helping keep our community safe.");
-};
+    if (selectedEvent?.id) {
+      getReports(selectedEvent.id, undefined, undefined)
+        .then(setReports)
+        .catch(console.error);
+    }
+    alert("Report flagged for review. Thank you for helping keep our community safe.");
+  };
 
   const handleReportAdded = () => {
-    // Refresh reports list
     if (selectedEvent?.id) {
       getReports(selectedEvent.id, undefined, undefined)
         .then(setReports)
@@ -93,7 +148,7 @@ export default function EventDetail() {
 
   const renderScore = (score?: number) => {
     if (!score) return null;
-    
+
     return (
       <div className="flex items-center gap-1">
         {[...Array(5)].map((_, i) => (
@@ -113,7 +168,7 @@ export default function EventDetail() {
       const now = new Date();
       const diffMs = now.getTime() - date.getTime();
       const diffMins = Math.floor(diffMs / 60000);
-      
+
       if (diffMins < 1) return "Just now";
       if (diffMins < 60) return `${diffMins}m ago`;
       if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
@@ -125,7 +180,7 @@ export default function EventDetail() {
 
   return selectedEvent ? (
     <>
-      <div 
+      <div
         ref={detailRef}
         className="fixed left-[400px] top-20 bottom-8 w-96 bg-white rounded-lg shadow-2xl p-6 z-40 flex flex-col"
       >
@@ -161,7 +216,7 @@ export default function EventDetail() {
                </span>
             </div>
           )}
-          
+
           {selectedEvent?.category && (
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <span className="px-2 py-1 text-xs font-medium rounded bg-gray-500 text-white">
@@ -179,6 +234,23 @@ export default function EventDetail() {
           >
             {token ? "Add Report" : "Login to Add Report"}
           </button>
+
+          <button
+            onClick={handleSubscribeToggle}
+            disabled={!token || subscribeLoading}
+            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg transition-all font-medium text-sm border-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+              isSubscribed
+                ? 'bg-green-500 text-white border-green-500 hover:bg-green-600 hover:border-green-600'
+                : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:shadow-md'
+            }`}
+            title={isSubscribed ? "Unsubscribe from event" : "Subscribe to event"}
+          >
+            <Bell
+              size={18}
+              className={isSubscribed ? 'fill-current' : ''}
+            />
+          </button>
+
           {selectedEvent.external_link && (
             <a
               href={selectedEvent.external_link}
@@ -265,7 +337,7 @@ export default function EventDetail() {
         onReportAdded={handleReportAdded}
       />
 
-      <FlagReportModal 
+      <FlagReportModal
         isOpen={!!reportToFlag}
         reportId={reportToFlag}
         onClose={() => setReportToFlag(null)}
@@ -274,4 +346,3 @@ export default function EventDetail() {
     </>
   ) : null;
 }
-
