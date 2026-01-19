@@ -8,6 +8,7 @@ from geoalchemy2 import WKTElement
 from typing import List
 from app.hs_logging import log_user_action, get_request_session_id
 from app.trending import calculate_trending_score
+from app.notification_utils import notify_spot_approved
 
 router = APIRouter()
 
@@ -239,3 +240,35 @@ async def delete_spot(
         )
 
         return {"status": "success", "message": "Spot deleted"}
+
+
+@router.put("/{id}/approve", status_code=status.HTTP_200_OK)
+async def approve_spot(
+        id: int = Path(...),
+        current_user: User = Depends(get_current_user),
+        request_session_id=Depends(get_request_session_id)
+):
+    """
+    Approve a newly created spot.
+    SECURITY: Only ADMINS can do this.
+    """
+    with get_session() as session:
+        spot = session.query(Spot).filter(Spot.id == id).first()
+        if not spot:
+            raise HTTPException(status_code=404, detail="Spot not found")
+
+        # Strict Admin Check
+        if not current_user.is_admin:
+            raise HTTPException(status_code=403, detail="Only admins can approve new spots")
+
+        if spot.is_approved:
+            return {"status": "success", "message": "Spot is already approved"}
+
+        spot.is_approved = True
+        session.commit()
+        session.refresh(spot)
+        
+        notify_spot_approved(spot.id, spot.name, spot.owner_id)
+        
+        log_user_action("approve_spot", current_user, new_data=spot.to_api_model(), request_session_id=request_session_id)
+        return {"status": "success", "message": "Spot approved and public"}

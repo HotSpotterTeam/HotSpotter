@@ -27,6 +27,7 @@ export const categoryIcons = {
     museum: Landmark,
     gallery: Image,
     event: Calendar,
+    other: MapPin,
     default: MapPin
 };
 
@@ -39,6 +40,7 @@ export const categoryColors: Record<string, string> = {
     cafe: '#ad8459ff',
     restaurant: '#F59E42',
     event: '#F43F5E',
+    other: '#64748B',
     default: '#64748B'
 };
 
