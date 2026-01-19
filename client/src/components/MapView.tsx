@@ -222,7 +222,7 @@ export default function MapView({
   onChooseLocation?: { enabled: boolean; callback: (lat: number, lng: number) => void } | null;
 }) {
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [currentUserLocation, setCurrentUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const currentUserLocation = useAppSelector((state) => state.app.currentUserLocation);
   const [mapInstance, setMapInstance] = useState<any>(null);
   const dispatch = useDispatch();
   const mapFilters = useAppSelector((state) => state.app.mapFilters);

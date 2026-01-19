@@ -143,10 +143,14 @@ async def create_event(
             if not spot:
                 raise HTTPException(status_code=404, detail="Spot not found")
 
-            if spot.owner_id != current_user.id and not current_user.is_admin:
-                status_str = "pending"
-            else:
+            # Auto-approve if:
+            # 1. User owns the spot, OR
+            # 2. Spot is public (beach or park), OR
+            # 3. User is admin
+            if spot.owner_id == current_user.id or spot.category in ["beach", "park"] or current_user.is_admin:
                 status_str = "pending-start"
+            else:
+                status_str = "pending"
 
             location_from_spot = spot.location
             location_wkt = location_from_spot
@@ -178,7 +182,9 @@ async def create_event(
         session.refresh(new_event)
 
         if event_data.spot_id:
-            notify_event_created_at_spot(event_data.spot_id, new_event.id, new_event.name, session)
+            spot = session.query(Spot).filter(Spot.id == event_data.spot_id).first()
+            if spot:
+                notify_event_created_at_spot(new_event.id, new_event.name, spot.name, spot.owner_id)
 
         log_user_action(
             action="create_event",
@@ -274,3 +280,39 @@ async def delete_event(
         )
 
         return {"status": "success", "message": "Event deleted"}
+
+
+@router.put("/{id}/approve", status_code=status.HTTP_200_OK)
+async def approve_event(
+        id: int = Path(...),
+        current_user: User = Depends(get_current_user),
+        request_session_id=Depends(get_request_session_id)
+):
+    """
+    Approve an event at a spot.
+    Only the SPOT OWNER can approve events at their spot.
+    """
+    with get_session() as session:
+        event = session.query(Event).filter(Event.id == id).first()
+        if not event:
+            raise HTTPException(status_code=404, detail="Event not found")
+
+        if not event.spot_id:
+            raise HTTPException(status_code=400, detail="This event is not attached to a spot")
+
+        spot = session.query(Spot).filter(Spot.id == event.spot_id).first()
+
+        # Security: Only Spot Owner or Admin
+        if spot.owner_id != current_user.id and not current_user.is_admin:
+            raise HTTPException(status_code=403, detail="Only the spot owner can approve this event")
+
+        if event.status == "pending-start" or event.status == "active":
+            return {"status": "success", "message": "Event is already approved"}
+
+        event.status = "pending-start"
+        session.commit()
+        
+        notify_event_approved(event.id, event.name, event.owner_id)
+        
+        log_user_action("approve_event", current_user, new_data=event.to_api_model(), request_session_id=request_session_id)
+        return {"status": "success", "message": "Event approved and will start at scheduled time"}

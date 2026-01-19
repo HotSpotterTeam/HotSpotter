@@ -151,7 +151,7 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
-      setCreatedEvent(data.data);
+      setCreatedEvent(data);
       setShowSuccess(true);
       formik.resetForm();
       setLocationType(null);
@@ -200,8 +200,8 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
       if (locationType === "spot") {
         eventData.spot_id = selectedSpotId;
       } else {
-        // Backend expects [lng, lat] format for custom_location
-        eventData.custom_location = [createEventLocation!.lng, createEventLocation!.lat];
+        // Backend expects [lat, lng] format for custom_location
+        eventData.custom_location = [createEventLocation!.lat, createEventLocation!.lng];
       }
 
       createEventMutation.mutate(eventData);
@@ -291,14 +291,14 @@ export default function CreateEventModal({ initialData, isOpen, onCloseOverride 
               {createdEvent?.status === "active" && (initialData ? "Event Updated!" : "Event Created!")}
             </h3>
             <p className="text-gray-600 mb-6">
-              {status === "pending" &&
+              {createdEvent?.status === "pending" &&
                 "Your event needs approval by the spot owner. You'll be notified once approved."}
 
-              {status === "pending-start" &&
-                "Waiting for the event to start."}
+              {createdEvent?.status === "pending-start" &&
+                "Your event is scheduled and will start at the scheduled time."}
 
-              {status === "active" &&
-                "Your event has been created successfully."}
+              {createdEvent?.status === "active" &&
+                "Your event has been created successfully and is now active."}
             </p>
             <button
               onClick={onClose}
