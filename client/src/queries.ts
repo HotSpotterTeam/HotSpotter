@@ -130,8 +130,8 @@ export function useSpots() {
 
 // Function to check if we should fetch spots based on zoom level
 export function shouldFetchSpots(zoom: number, spotCount?: number): { shouldFetch: boolean; message?: string } {
-  // Too zoomed out
-  if (zoom < 13) {
+  // Too zoomed out - lowered from 13 to 10 since clustering handles many markers
+  if (zoom < 10) {
     return { shouldFetch: false, message: "Zoom in to see spots" };
   }
   
