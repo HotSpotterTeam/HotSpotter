@@ -352,8 +352,8 @@ export default function FilterPanel() {
                 <>
                   {/* Location Source - All in one line */}
                   <div className="mb-3">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <label className="text-[10px] text-gray-600 whitespace-nowrap">From Location</label>
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="text-xs font-medium text-gray-700 whitespace-nowrap">From</label>
                       <button
                         onClick={() => {
                           dispatch(setMapFilters({
@@ -364,13 +364,13 @@ export default function FilterPanel() {
                             }
                           }));
                         }}
-                        className={`py-1 px-1.5 rounded text-[10px] font-medium transition-all flex items-center gap-0.5 ${
+                        className={`flex-1 py-1 px-2 rounded text-xs font-medium transition-all flex items-center justify-center gap-1 ${
                           mapFilters.distanceFilter.fromLocation === "current"
-                            ? "bg-white text-blue-600 border border-blue-500 shadow-sm"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200"
+                            ? "bg-white text-blue-600 border-2 border-blue-500 shadow-sm"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300"
                         }`}
                       >
-                        <MapPin size={10} />
+                        <MapPin size={12} />
                         My Location
                       </button>
                       <button
@@ -384,10 +384,10 @@ export default function FilterPanel() {
                           }));
                           dispatch(setOnChooseDistanceLocation(true));
                         }}
-                        className={`py-1 px-1.5 rounded text-[10px] font-medium transition-all whitespace-nowrap ${
+                        className={`flex-1 py-1 px-2 rounded text-xs font-medium transition-all whitespace-nowrap ${
                           mapFilters.distanceFilter.fromLocation === "custom"
-                            ? "bg-white text-blue-600 border border-blue-500 shadow-sm"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200"
+                            ? "bg-white text-blue-600 border-2 border-blue-500 shadow-sm"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300"
                         }`}
                       >
                         Choose on Map
@@ -404,19 +404,19 @@ export default function FilterPanel() {
                               }
                             }));
                           }}
-                          className="text-[10px] text-orange-600 hover:text-orange-700 font-medium ml-auto"
+                          className="py-1 px-2 rounded text-xs text-orange-600 hover:text-orange-700 font-medium border border-orange-300 hover:border-orange-400 bg-orange-50 hover:bg-orange-100 transition-all whitespace-nowrap"
                         >
                           Reset
                         </button>
                       )}
                     </div>
                     {mapFilters.distanceFilter.fromLocation === "custom" && !mapFilters.distanceFilter.customLocation && (
-                      <div className="text-[10px] text-orange-600">
+                      <div className="text-xs text-orange-600">
                         Click on map to select location
                       </div>
                     )}
                     {mapFilters.distanceFilter.fromLocation === "current" && !currentUserLocation && (
-                      <div className="text-[10px] text-orange-600">
+                      <div className="text-xs text-orange-600">
                         Location not available
                       </div>
                     )}
@@ -424,14 +424,14 @@ export default function FilterPanel() {
 
                   {/* Distance Slider */}
                   <div className="mb-2">
-                    <label className="block text-[10px] text-gray-600 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1 text-center">
                       Radius: {mapFilters.distanceFilter.radius.toFixed(1)} km
                     </label>
                     <input
                       type="range"
                       min="0"
                       max="1"
-                      step="0.2"
+                      step="0.1"
                       value={mapFilters.distanceFilter.radius}
                       onChange={(e) => {
                         dispatch(setMapFilters({
@@ -444,7 +444,7 @@ export default function FilterPanel() {
                       }}
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                     />
-                    <div className="flex justify-between text-[9px] text-gray-500 mt-1">
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
                       <span>0 km</span>
                       <span>1 km</span>
                     </div>
