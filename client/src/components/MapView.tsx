@@ -88,7 +88,6 @@ function filterEventsByTime(events: any[], timeFilter: TimeFilter) {
         if (!timeFilter.startDate || !timeFilter.endDate) return true;
         const filterStart = new Date(timeFilter.startDate);
         const filterEnd = new Date(timeFilter.endDate);
-        filterEnd.setHours(23, 59, 59, 999);
         return eventStart <= filterEnd && eventEnd >= filterStart;
       }
       default:
@@ -500,7 +499,7 @@ export default function MapView({
                   )}
                   {event.start_time && (
                     <div className="text-xs text-gray-500 mb-2">
-                      📅 {new Date(event.start_time).toLocaleDateString('en-GB')}
+                      📅 {new Date(event.start_time).toLocaleDateString('en-GB')} {new Date(event.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   )}
                   {trendingScore > 0 && (
