@@ -18,8 +18,21 @@ import { TEL_AVIV_DEFAULT } from "../constants";
 import { categoryIcons, categoryColors, createCustomIcon } from "../icons";
 import { useSelector, useDispatch } from "react-redux";
 import { setShowFilterPanel } from "../state/AppSlice";
-import type { TimeFilter } from "../state/AppSlice";
+import type { TimeFilter, Location } from "../state/AppSlice";
 import L from "leaflet";
+
+// Helper function to calculate distance between two points using Haversine formula
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371; // Radius of Earth in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in kilometers
+}
 
 // Helper function to convert trending score to icon size
 function getIconSizeMultiplier(trendingScore?: number): number {
@@ -36,34 +49,40 @@ function filterEventsByTime(events: any[], timeFilter: TimeFilter) {
   if (timeFilter.type === "all") return events;
 
   const now = new Date();
-  now.setHours(0, 0, 0, 0);
+  const nowForToday = new Date();
+  nowForToday.setHours(0, 0, 0, 0);
 
   return events.filter((event: any) => {
     const eventStart = new Date(event.start_time);
     const eventEnd = new Date(event.end_time);
 
     switch (timeFilter.type) {
+      case "active": {
+        // Filter events that are happening right now (active status)
+        return event.status === "active" && eventStart <= now && eventEnd >= now;
+      }
       case "today": {
-        const endOfToday = new Date(now);
+        const endOfToday = new Date(nowForToday);
         endOfToday.setHours(23, 59, 59, 999);
-        return eventStart <= endOfToday && eventEnd >= now;
+        return eventStart <= endOfToday && eventEnd >= nowForToday;
       }
       case "tomorrow": {
-        const startOfTomorrow = new Date(now);
+        const startOfTomorrow = new Date(nowForToday);
         startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
         const endOfTomorrow = new Date(startOfTomorrow);
         endOfTomorrow.setHours(23, 59, 59, 999);
         return eventStart <= endOfTomorrow && eventEnd >= startOfTomorrow;
       }
       case "weekend": {
-        const dayOfWeek = now.getDay();
-        const daysUntilSaturday = dayOfWeek === 6 ? 0 : dayOfWeek === 0 ? 6 : 6 - dayOfWeek;
-        const saturday = new Date(now);
-        saturday.setDate(saturday.getDate() + daysUntilSaturday);
-        const sunday = new Date(saturday);
-        sunday.setDate(sunday.getDate() + 1);
-        sunday.setHours(23, 59, 59, 999);
-        return eventStart <= sunday && eventEnd >= saturday;
+        const dayOfWeek = nowForToday.getDay();
+        // Friday is 5, Saturday is 6
+        const daysUntilFriday = dayOfWeek === 5 ? 0 : dayOfWeek === 6 ? 6 : (5 - dayOfWeek + 7) % 7;
+        const friday = new Date(nowForToday);
+        friday.setDate(friday.getDate() + daysUntilFriday);
+        const saturday = new Date(friday);
+        saturday.setDate(saturday.getDate() + 1);
+        saturday.setHours(23, 59, 59, 999);
+        return eventStart <= saturday && eventEnd >= friday;
       }
       case "custom": {
         if (!timeFilter.startDate || !timeFilter.endDate) return true;
@@ -253,7 +272,8 @@ export default function MapView({
   const hasActiveFilters =
     mapFilters.spotCategories.length > 0 ||
     mapFilters.eventCategories.length > 0 ||
-    mapFilters.timeFilter.type !== "all";
+    mapFilters.timeFilter.type !== "all" ||
+    mapFilters.distanceFilter.enabled;
 
 
   const events = useSelector((state: RootState) => state.events.events);
@@ -261,9 +281,30 @@ export default function MapView({
   const { spots, total, isPending: spotsLoading, fetchCheck } = useSpots();
   useEvents();
 
-  const filteredSpots = spots?.filter((spot) => {
+  // Apply category filter first
+  const categoryFilteredSpots = spots?.filter((spot) => {
     if (mapFilters.spotCategories.length === 0) return true;
     return mapFilters.spotCategories.includes(spot.category || "default");
+  });
+
+  // Apply distance filter to spots
+  const filteredSpots = categoryFilteredSpots?.filter((spot) => {
+    if (!mapFilters.distanceFilter.enabled) return true;
+    
+    const center = mapFilters.distanceFilter.fromLocation === "current"
+      ? currentUserLocation
+      : mapFilters.distanceFilter.customLocation;
+    
+    if (!center || !spot.location || spot.location.length < 2) return true;
+    
+    const distance = calculateDistance(
+      center.lat,
+      center.lng,
+      spot.location[0],
+      spot.location[1]
+    );
+    
+    return distance <= mapFilters.distanceFilter.radius;
   });
 
   const nonPendingEvents = events?.filter((event: any) =>
@@ -275,10 +316,30 @@ export default function MapView({
     return mapFilters.eventCategories.includes(event.category || "default");
   });
 
-  const filteredEvents = filterEventsByTime(
+  const timeFilteredEvents = filterEventsByTime(
     categoryFilteredEvents || [],
     mapFilters.timeFilter
   );
+
+  // Apply distance filter to events
+  const filteredEvents = timeFilteredEvents?.filter((event: any) => {
+    if (!mapFilters.distanceFilter.enabled) return true;
+    
+    const center = mapFilters.distanceFilter.fromLocation === "current"
+      ? currentUserLocation
+      : mapFilters.distanceFilter.customLocation;
+    
+    if (!center || !event.location || event.location.length < 2) return true;
+    
+    const distance = calculateDistance(
+      center.lat,
+      center.lng,
+      event.location[0],
+      event.location[1]
+    );
+    
+    return distance <= mapFilters.distanceFilter.radius;
+  });
 
   return (
     <div className="w-full h-full relative z-0">
@@ -310,6 +371,40 @@ export default function MapView({
           />
         )}
 
+        {/* Distance Filter Circle Overlay */}
+        {mapFilters.distanceFilter.enabled && (() => {
+          const center = mapFilters.distanceFilter.fromLocation === "current"
+            ? currentUserLocation
+            : mapFilters.distanceFilter.customLocation;
+          
+          if (center) {
+            return (
+              <>
+                <Circle
+                  center={[center.lat, center.lng]}
+                  radius={mapFilters.distanceFilter.radius * 1000} // Convert km to meters
+                  color="#3b82f6"
+                  fillColor="#3b82f6"
+                  fillOpacity={0.1}
+                  opacity={0.6}
+                  weight={2}
+                />
+                <CircleMarker
+                  center={[center.lat, center.lng]}
+                  radius={6}
+                  pathOptions={{
+                    color: "#3b82f6",
+                    fillColor: "#3b82f6",
+                    fillOpacity: 0.8,
+                    weight: 2,
+                  }}
+                />
+              </>
+            );
+          }
+          return null;
+        })()}
+
         {/* Show spots with trending-based icon sizes and clickable popups */}
         {fetchCheck.shouldFetch && filteredSpots?.map((spot) => {
           const cat = spot.category || 'default';
@@ -317,7 +412,7 @@ export default function MapView({
           const iconColor = categoryColors[cat] || categoryColors.default;
 
           // Calculate icon size based on trending score
-          const trendingScore = spot.trending_score || 0;
+          const trendingScore = (spot as any).trending_score || 0;
           const sizeMultiplier = getIconSizeMultiplier(trendingScore);
           const finalSize = 20 * sizeMultiplier;
 

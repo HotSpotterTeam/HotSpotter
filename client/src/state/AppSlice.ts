@@ -8,15 +8,23 @@ export type Location = {
 };
 
 export type TimeFilter = {
-  type: "all" | "today" | "tomorrow" | "weekend" | "custom";
+  type: "all" | "today" | "tomorrow" | "weekend" | "active" | "custom";
   startDate?: string;
   endDate?: string;
+};
+
+export type DistanceFilter = {
+  enabled: boolean;
+  fromLocation: "current" | "custom" | "";
+  customLocation: Location | null;
+  radius: number; // in kilometers
 };
 
 export type MapFilters = {
   spotCategories: string[];
   eventCategories: string[];
   timeFilter: TimeFilter;
+  distanceFilter: DistanceFilter;
 };
 
 export const appSlice = createSlice({
@@ -30,6 +38,7 @@ export const appSlice = createSlice({
     error: null as string | null,
     onChooseLocation: false as boolean,
     onChooseEventLocation: false as boolean,
+    onChooseDistanceLocation: false as boolean,
     createSpotLocation: null as Location | null,
     createEventLocation: null as Location | null,
     currentUserLocation: null as Location | null,
@@ -42,7 +51,8 @@ export const appSlice = createSlice({
     mapFilters: { 
       spotCategories: [], 
       eventCategories: [],
-      timeFilter: { type: "all" } 
+      timeFilter: { type: "all" },
+      distanceFilter: { enabled: false, fromLocation: "", customLocation: null, radius: 0.2 }
     } as MapFilters,
   },
   reducers: {
@@ -69,6 +79,9 @@ export const appSlice = createSlice({
     },
     setOnChooseEventLocation: (state, action) => {
       state.onChooseEventLocation = action.payload as boolean;
+    },
+    setOnChooseDistanceLocation: (state, action) => {
+      state.onChooseDistanceLocation = action.payload as boolean;
     },
     setCreateSpotLocation: (state, action) => {
       state.createSpotLocation = action.payload as Location | null;
@@ -112,6 +125,7 @@ export const {
   setError,
   setOnChooseLocation,
   setOnChooseEventLocation,
+  setOnChooseDistanceLocation,
   setCreateSpotLocation,
   setCreateEventLocation,
   setCurrentUserLocation,

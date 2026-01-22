@@ -7,10 +7,12 @@ import {
   setCurrentUserLocation,
   setOnChooseLocation,
   setOnChooseEventLocation,
+  setOnChooseDistanceLocation,
   setShowCreateSpot,
   setShowCreateEvent,
   setMapBounds,
   setMapZoom,
+  setMapFilters,
 } from "../state/AppSlice";
 import { useDispatch } from "react-redux";
 import { Bounds } from "../queries";
@@ -23,6 +25,10 @@ export default function MapEvents() {
   const onChooseEventLocation = useAppSelector(
     (state) => state.app.onChooseEventLocation
   );
+  const onChooseDistanceLocation = useAppSelector(
+    (state) => state.app.onChooseDistanceLocation
+  );
+  const mapFilters = useAppSelector((state) => state.app.mapFilters);
   const dispatch = useDispatch();
   const hasCenteredRef = useRef(false);
   const updateTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -64,6 +70,15 @@ export default function MapEvents() {
         );
         dispatch(setOnChooseEventLocation(false));
         dispatch(setShowCreateEvent(true));
+      } else if (onChooseDistanceLocation) {
+        dispatch(setMapFilters({
+          ...mapFilters,
+          distanceFilter: {
+            ...mapFilters.distanceFilter,
+            customLocation: { lat: e.latlng.lat, lng: e.latlng.lng }
+          }
+        }));
+        dispatch(setOnChooseDistanceLocation(false));
       }
     },
     moveend: () => {
