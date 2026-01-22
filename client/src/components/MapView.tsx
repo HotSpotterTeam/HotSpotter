@@ -88,7 +88,6 @@ function filterEventsByTime(events: any[], timeFilter: TimeFilter) {
         if (!timeFilter.startDate || !timeFilter.endDate) return true;
         const filterStart = new Date(timeFilter.startDate);
         const filterEnd = new Date(timeFilter.endDate);
-        filterEnd.setHours(23, 59, 59, 999);
         return eventStart <= filterEnd && eventEnd >= filterStart;
       }
       default:

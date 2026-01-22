@@ -294,18 +294,18 @@ export default function FilterPanel() {
                 {mapFilters.timeFilter.type === "custom" && (
                   <div className="grid grid-cols-2 gap-1.5 mt-2">
                     <div>
-                      <label className="block text-[10px] text-gray-600 mb-1">Start Date</label>
+                      <label className="block text-[10px] text-gray-600 mb-1">Start Date & Time</label>
                       <input
-                        type="date"
+                        type="datetime-local"
                         value={mapFilters.timeFilter.startDate || ""}
                         onChange={(e) => handleCustomDateChange("startDate", e.target.value)}
                         className="w-full px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] text-gray-600 mb-1">End Date</label>
+                      <label className="block text-[10px] text-gray-600 mb-1">End Date & Time</label>
                       <input
-                        type="date"
+                        type="datetime-local"
                         value={mapFilters.timeFilter.endDate || ""}
                         onChange={(e) => handleCustomDateChange("endDate", e.target.value)}
                         className="w-full px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500"

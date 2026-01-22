@@ -200,11 +200,22 @@ export default function EventDetail() {
         <div className="space-y-3 mb-4 flex-shrink-0">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <TrendingUp size={16} className="text-green-600" />
-            <span className="font-medium">{selectedEvent?.status}</span>
+            <span className="font-medium capitalize">{selectedEvent?.status}</span>
             {selectedEvent?.start_time && (
               <>
                 <span>•</span>
-                <span>{new Date(selectedEvent.start_time).toLocaleDateString('en-GB')} {new Date(selectedEvent.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="text-gray-700 font-medium">
+                  {(() => {
+                    const startDate = new Date(selectedEvent.start_time);
+                    const endDate = new Date(selectedEvent.end_time);
+                    const isSameDay = startDate.toDateString() === endDate.toDateString();
+                    const startStr = `${startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${startDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+                    const endStr = isSameDay 
+                      ? endDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                      : `${endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${endDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+                    return `${startStr} – ${endStr}`;
+                  })()}
+                </span>
               </>
             )}
           </div>
@@ -213,7 +224,7 @@ export default function EventDetail() {
             <div className="flex items-center gap-2 text-sm text-gray-600">
                <MapPin size={16} className="text-blue-600" />
                <span className="font-medium">
-                 At: {selectedEvent.spot_name || `Spot #${selectedEvent.spot_id}`}
+                 at: {selectedEvent.spot_name || `Spot #${selectedEvent.spot_id}`}
                </span>
             </div>
           )}

@@ -67,7 +67,6 @@ function filterEventsByTime(events: Event[], timeFilter: TimeFilter) {
         if (!timeFilter.startDate || !timeFilter.endDate) return true;
         const filterStart = new Date(timeFilter.startDate);
         const filterEnd = new Date(timeFilter.endDate);
-        filterEnd.setHours(23, 59, 59, 999);
         return eventStart <= filterEnd && eventEnd >= filterStart;
       }
       default:
@@ -404,15 +403,28 @@ export default function Sidebar({
                               </span>
                             </div>
 
-                            <div className="flex items-center justify-between text-sm text-gray-600 mt-2">
-                              <div className="flex items-center gap-3">
-                                <span className="flex items-center gap-1 text-green-600">
-                                  Start: {new Date(event.start_time).toLocaleDateString('en-GB')} {new Date(event.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                                <span className="flex items-center gap-1 capitalize">
-                                  {event.status}
+                            <div className="flex items-center justify-between text-xs text-gray-600 mt-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-700 font-medium">
+                                  {(() => {
+                                    const startDate = new Date(event.start_time);
+                                    const endDate = new Date(event.end_time);
+                                    const isSameDay = startDate.toDateString() === endDate.toDateString();
+                                    const startStr = `${startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${startDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+                                    const endStr = isSameDay 
+                                      ? endDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                                      : `${endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${endDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+                                    return `${startStr} \u2013 ${endStr}`;
+                                  })()}
                                 </span>
                               </div>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full capitalize ${
+                                event.status === 'active' 
+                                  ? 'bg-green-100 text-green-700' 
+                                  : 'bg-gray-100 text-gray-600'
+                              }`}>
+                                {event.status}
+                              </span>
                             </div>
                           </div>
                         );
@@ -520,15 +532,28 @@ export default function Sidebar({
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-sm text-gray-600 mt-2">
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1 text-green-600">
-                          Start: {new Date(event.start_time).toLocaleDateString('en-GB')} {new Date(event.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <span className="flex items-center gap-1 capitalize">
-                          {event.status}
+                    <div className="flex items-center justify-between text-xs text-gray-600 mt-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-700 font-medium">
+                          {(() => {
+                            const startDate = new Date(event.start_time);
+                            const endDate = new Date(event.end_time);
+                            const isSameDay = startDate.toDateString() === endDate.toDateString();
+                            const startStr = `${startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${startDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+                            const endStr = isSameDay 
+                              ? endDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                              : `${endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${endDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+                            return `${startStr} \u2013 ${endStr}`;
+                          })()}
                         </span>
                       </div>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full capitalize ${
+                        event.status === 'active' 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {event.status}
+                      </span>
                     </div>
                   </div>
                   );
