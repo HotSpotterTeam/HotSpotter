@@ -79,6 +79,16 @@ export interface Spot {
   owner_id: number;
   external_link?: string | null;
   description?: string;
+  location: number[]; // [lat, lng]
+  address?: string | null;
+  spot_type: string;
+  permanence_reason?: string | null;
+  source: string;
+  osm_id?: string | null;
+  expires_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  last_activity?: string | null;
 }
 
 export interface Notification {

@@ -412,7 +412,7 @@ export default function MapView({
           const iconColor = categoryColors[cat] || categoryColors.default;
 
           // Calculate icon size based on trending score
-          const trendingScore = spot.trending_score || 0;
+          const trendingScore = (spot as any).trending_score || 0;
           const sizeMultiplier = getIconSizeMultiplier(trendingScore);
           const finalSize = 20 * sizeMultiplier;
 
