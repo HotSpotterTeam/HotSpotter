@@ -60,6 +60,7 @@ class Event(BaseModel):
     spot_id: Optional[int] = None
     spot_name: Optional[str] = None
     owner_id: Optional[int] = None  # Optional to handle legacy data, but should always be set for new events
+    user_name: Optional[str] = None  # Name of the event creator
 
 class CreateReportFlag(BaseModel):
     category: str

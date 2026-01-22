@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { TrendingUp, Camera, Navigation, Flag, Star, ExternalLink, MapPin, Bell } from "lucide-react";
 import { RootState } from "../state/store";
 import { useDispatch, useSelector } from "react-redux";
-import { setSelectedEvent } from "../state/AppSlice";
+import { setSelectedEvent, setSelectedSpot } from "../state/AppSlice";
+import { categoryColors } from "../icons";
 import { Event, Report } from "../generated-types";
 import { getReports, flagReport } from "../api/reportsApi";
+import { getSpotById } from "../api/spotsApi";
 import { useAppSelector } from "../store/hooks";
 import AddReportModal from "./AddReportModal";
 import FlagReportModal from "./FlagReportModal";
@@ -25,6 +27,7 @@ export default function EventDetail() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscribeLoading, setSubscribeLoading] = useState(false);
   const [showNavigateMenu, setShowNavigateMenu] = useState(false);
+  const [remainingTime, setRemainingTime] = useState<string>("");
   const detailRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -70,6 +73,38 @@ export default function EventDetail() {
       }
     }
   }, [selectedEvent?.id, token]);
+
+  // Update remaining time every minute for active events
+  useEffect(() => {
+    if (!selectedEvent || selectedEvent.status !== "active") {
+      setRemainingTime("");
+      return;
+    }
+
+    const updateRemainingTime = () => {
+      const now = new Date();
+      const endTime = new Date(selectedEvent.end_time);
+      const diffMs = endTime.getTime() - now.getTime();
+
+      if (diffMs <= 0) {
+        setRemainingTime("Ended");
+        return;
+      }
+
+      const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      setRemainingTime(`${String(days).padStart(2, '0')}:${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
+    };
+
+    // Update immediately
+    updateRemainingTime();
+
+    // Update every minute
+    const interval = setInterval(updateRemainingTime, 60000);
+
+    return () => clearInterval(interval);
+  }, [selectedEvent]);
 
   const checkIfSubscribed = async () => {
     if (!token || !selectedEvent?.id) return;
@@ -192,19 +227,48 @@ export default function EventDetail() {
             </h3>
             <p className="text-sm text-gray-600">{selectedEvent?.description}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            {selectedEvent?.category && (
+              <span 
+                className="px-3 py-2 text-xs font-medium rounded-lg bg-white border-2"
+                style={{ 
+                  borderColor: categoryColors[selectedEvent.category] || categoryColors.default, 
+                  color: categoryColors[selectedEvent.category] || categoryColors.default 
+                }}
+              >
+                {selectedEvent.category}
+              </span>
+            )}
+            <button
+              onClick={handleSubscribeToggle}
+              disabled={!token || subscribeLoading}
+              className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all font-medium text-sm border-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                isSubscribed
+                  ? 'bg-green-500 text-white border-green-500 hover:bg-green-600 hover:border-green-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:shadow-md'
+              }`}
+              title={isSubscribed ? "Unsubscribe from event" : "Subscribe to event"}
+            >
+              <Bell
+                size={16}
+                className={isSubscribed ? 'fill-current' : ''}
+              />
+            </button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              ✕
+            </button>
+          </div>
         </div>
 
         <div className="space-y-3 mb-4 flex-shrink-0">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <TrendingUp size={16} className="text-green-600" />
-            <span className="font-medium capitalize">{selectedEvent?.status}</span>
-            {selectedEvent?.start_time && (
-              <>
-                <span>•</span>
-                <span className="text-gray-700 font-medium">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <div className="flex items-center gap-2 text-gray-600">
+                <TrendingUp size={16} className="text-green-600" />
+                <span className="font-medium capitalize">{selectedEvent?.status}</span>
+              </div>
+              {selectedEvent?.start_time && (
+                <span className="text-sm text-gray-700 font-medium">
                   {(() => {
                     const startDate = new Date(selectedEvent.start_time);
                     const endDate = new Date(selectedEvent.end_time);
@@ -216,23 +280,65 @@ export default function EventDetail() {
                     return `${startStr} – ${endStr}`;
                   })()}
                 </span>
-              </>
+              )}
+            </div>
+            
+            {selectedEvent?.status === "active" && remainingTime && remainingTime !== "Ended" && (
+              <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-md p-2">
+                <div className="text-center">
+                  <p className="text-[10px] font-medium text-orange-700 mb-1">Event ends in</p>
+                  <div className="flex items-center justify-center gap-0.5">
+                    <div className="flex flex-col items-center">
+                      <span className="text-lg font-bold text-orange-600 tabular-nums leading-none">
+                        {remainingTime.split(':')[0]}
+                      </span>
+                      <span className="text-[9px] text-orange-600 font-medium mt-0.5">DD</span>
+                    </div>
+                    <span className="text-lg font-bold text-orange-600 leading-none mb-3">:</span>
+                    <div className="flex flex-col items-center">
+                      <span className="text-lg font-bold text-orange-600 tabular-nums leading-none">
+                        {remainingTime.split(':')[1]}
+                      </span>
+                      <span className="text-[9px] text-orange-600 font-medium mt-0.5">HH</span>
+                    </div>
+                    <span className="text-lg font-bold text-orange-600 leading-none mb-3">:</span>
+                    <div className="flex flex-col items-center">
+                      <span className="text-lg font-bold text-orange-600 tabular-nums leading-none">
+                        {remainingTime.split(':')[2]}
+                      </span>
+                      <span className="text-[9px] text-orange-600 font-medium mt-0.5">MM</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
           {selectedEvent?.spot_id && (
             <div className="flex items-center gap-2 text-sm text-gray-600">
                <MapPin size={16} className="text-blue-600" />
-               <span className="font-medium">
+               <button
+                 onClick={async () => {
+                   try {
+                     const spot = await getSpotById(selectedEvent.spot_id!);
+                     dispatch(setSelectedEvent(null));
+                     dispatch(setSelectedSpot(spot));
+                   } catch (error) {
+                     console.error('Error fetching spot:', error);
+                   }
+                 }}
+                 className="font-medium hover:text-blue-600 transition-colors cursor-pointer"
+               >
                  at: {selectedEvent.spot_name || `Spot #${selectedEvent.spot_id}`}
-               </span>
+               </button>
             </div>
           )}
 
-          {selectedEvent?.category && (
+          {selectedEvent?.user_name && (
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span className="px-2 py-1 text-xs font-medium rounded bg-gray-500 text-white">
-                {selectedEvent.category}
+              <div className="w-4"></div>
+              <span className="font-medium">
+                by: {selectedEvent.user_name}
               </span>
             </div>
           )}
@@ -245,22 +351,6 @@ export default function EventDetail() {
             disabled={!token}
           >
             {token ? "Add Report" : "Login to Add Report"}
-          </button>
-
-          <button
-            onClick={handleSubscribeToggle}
-            disabled={!token || subscribeLoading}
-            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg transition-all font-medium text-sm border-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-              isSubscribed
-                ? 'bg-green-500 text-white border-green-500 hover:bg-green-600 hover:border-green-600'
-                : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:shadow-md'
-            }`}
-            title={isSubscribed ? "Unsubscribe from event" : "Subscribe to event"}
-          >
-            <Bell
-              size={18}
-              className={isSubscribed ? 'fill-current' : ''}
-            />
           </button>
 
           {selectedEvent.external_link && (

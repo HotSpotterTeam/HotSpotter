@@ -203,6 +203,7 @@ class Event(Base):
             "spot_id": self.spot_id,
             "spot_name": self.spot.name if self.spot else None,
             "owner_id": self.owner_id if self.owner_id is not None else None,
+            "user_name": self.organizer.name if self.organizer else None,
         }
 
 
