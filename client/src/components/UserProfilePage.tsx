@@ -519,7 +519,7 @@ const UserProfilePage = () => {
         <TabButton id="spots" label="My Spots" icon={MapPin} count={totals.spots} />
         <TabButton id="events" label="My Events" icon={Calendar} count={totals.events} />
         <TabButton id="reports" label="My Reports" icon={Flag} count={totals.reports} />
-        <TabButton id="favorites" label="Saved Spots" icon={MapPin} count={totals.favorites} />
+        <TabButton id="favorites" label="Favorite Spots" icon={MapPin} count={totals.favorites} />
         <TabButton id="subscriptions" label="Subscribed Events" icon={Calendar} count={totals.subscriptions} />
       </div>
 
@@ -842,7 +842,7 @@ const UserProfilePage = () => {
               <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
                 <MapPin size={48} className="mx-auto text-gray-300 mb-3" />
                 <p className="text-gray-500">
-                  {searchTerm ? "No favorite spots match your search" : "You haven't saved any spots yet"}
+                  {searchTerm ? "No favorite spots match your search" : "You haven't favorited any spots yet"}
                 </p>
               </div>
             ) : (
