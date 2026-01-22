@@ -3,6 +3,7 @@ import { MapPin, Navigation, Flag, Star, ExternalLink, Heart } from "lucide-reac
 import { RootState } from "../state/store";
 import { useDispatch, useSelector } from "react-redux";
 import { setSelectedSpot } from "../state/AppSlice";
+import { categoryColors } from "../icons";
 import { Report } from "../generated-types";
 import { getReports, flagReport } from "../api/reportsApi";
 import { useAppSelector } from "../store/hooks";
@@ -189,21 +190,36 @@ export default function SpotDetail() {
             </h3>
             <p className="text-sm text-gray-600">{selectedSpot?.description}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            ✕
-          </button>
-        </div>
-
-        <div className="space-y-3 mb-4 flex-shrink-0">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <span className={`px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800' `}>
-              {'Permanent Spot'}
-            </span>
-            {selectedSpot.category && (
-              <span className="px-2 py-1 text-xs font-medium rounded bg-gray-500 text-white capitalize">
+          <div className="flex items-center gap-2">
+            {selectedSpot?.category && (
+              <span 
+                className="px-3 py-2 text-xs font-medium rounded-lg bg-white border-2"
+                style={{ 
+                  borderColor: categoryColors[selectedSpot.category] || categoryColors.default, 
+                  color: categoryColors[selectedSpot.category] || categoryColors.default 
+                }}
+              >
                 {selectedSpot.category}
               </span>
             )}
+            <button
+              onClick={handleFavoriteToggle}
+              disabled={!token || favoriteLoading}
+              className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all font-medium text-sm border-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                isFavorited
+                  ? 'bg-red-500 text-white border-red-500 hover:bg-red-600 hover:border-red-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:shadow-md'
+              }`}
+              title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+            >
+              <Heart
+                size={16}
+                className={isFavorited ? 'fill-current' : ''}
+              />
+            </button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              ✕
+            </button>
           </div>
         </div>
 
@@ -214,22 +230,6 @@ export default function SpotDetail() {
             disabled={!token}
           >
             {token ? "Add Report" : "Login to Add Report"}
-          </button>
-
-          <button
-            onClick={handleFavoriteToggle}
-            disabled={!token || favoriteLoading}
-            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg transition-all font-medium text-sm border-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-              isFavorited
-                ? 'bg-red-500 text-white border-red-500 hover:bg-red-600 hover:border-red-600'
-                : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:shadow-md'
-            }`}
-            title={isFavorited ? "Remove from favorites" : "Add to favorites"}
-          >
-            <Heart
-              size={18}
-              className={isFavorited ? 'fill-current' : ''}
-            />
           </button>
 
           {selectedSpot.external_link && (
