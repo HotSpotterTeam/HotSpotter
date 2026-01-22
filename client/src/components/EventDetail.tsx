@@ -204,7 +204,7 @@ export default function EventDetail() {
             {selectedEvent?.start_time && (
               <>
                 <span>•</span>
-                <span>{new Date(selectedEvent.start_time).toLocaleDateString('en-GB')}</span>
+                <span>{new Date(selectedEvent.start_time).toLocaleDateString('en-GB')} {new Date(selectedEvent.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
               </>
             )}
           </div>

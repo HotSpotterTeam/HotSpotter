@@ -500,7 +500,7 @@ export default function MapView({
                   )}
                   {event.start_time && (
                     <div className="text-xs text-gray-500 mb-2">
-                      📅 {new Date(event.start_time).toLocaleDateString('en-GB')}
+                      📅 {new Date(event.start_time).toLocaleDateString('en-GB')} {new Date(event.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   )}
                   {trendingScore > 0 && (

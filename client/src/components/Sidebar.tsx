@@ -407,7 +407,7 @@ export default function Sidebar({
                             <div className="flex items-center justify-between text-sm text-gray-600 mt-2">
                               <div className="flex items-center gap-3">
                                 <span className="flex items-center gap-1 text-green-600">
-                                  Start: {new Date(event.start_time).toLocaleDateString('en-GB')}
+                                  Start: {new Date(event.start_time).toLocaleDateString('en-GB')} {new Date(event.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                                 <span className="flex items-center gap-1 capitalize">
                                   {event.status}
@@ -523,7 +523,7 @@ export default function Sidebar({
                     <div className="flex items-center justify-between text-sm text-gray-600 mt-2">
                       <div className="flex items-center gap-3">
                         <span className="flex items-center gap-1 text-green-600">
-                          Start: {new Date(event.start_time).toLocaleDateString('en-GB')}
+                          Start: {new Date(event.start_time).toLocaleDateString('en-GB')} {new Date(event.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         <span className="flex items-center gap-1 capitalize">
                           {event.status}
