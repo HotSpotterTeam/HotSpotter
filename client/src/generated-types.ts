@@ -28,6 +28,7 @@ export interface Event {
   spot_id?: number;
   spot_name?: string | null;
   owner_id?: number;
+  user_name?: string | null;
   external_link?: string | null;
 }
 export interface EventResponse {
