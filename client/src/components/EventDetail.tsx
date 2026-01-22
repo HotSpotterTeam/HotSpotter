@@ -24,6 +24,7 @@ export default function EventDetail() {
   const [reportToFlag, setReportToFlag] = useState<number | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscribeLoading, setSubscribeLoading] = useState(false);
+  const [showNavigateMenu, setShowNavigateMenu] = useState(false);
   const detailRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -262,10 +263,49 @@ export default function EventDetail() {
               <ExternalLink size={18} />
             </a>
           )}
-          <button className="flex items-center gap-2 bg-white text-gray-700 border-2 border-gray-300 px-5 py-2.5 rounded-lg hover:border-gray-400 hover:shadow-md transition-all font-medium text-sm">
-            <Navigation size={18} />
-            Navigate
-          </button>
+          <div className="relative">
+            <button 
+              onClick={() => setShowNavigateMenu(!showNavigateMenu)}
+              className="flex items-center gap-2 bg-white text-gray-700 border-2 border-gray-300 px-5 py-2.5 rounded-lg hover:border-gray-400 hover:shadow-md transition-all font-medium text-sm"
+            >
+              <Navigation size={18} />
+              Navigate
+            </button>
+            {showNavigateMenu && (
+              <div className="absolute top-full mt-2 right-0 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                <button
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  onClick={() => {
+                    const [lat, lng] = selectedEvent.location;
+                    window.open(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`, '_blank');
+                    setShowNavigateMenu(false);
+                  }}
+                >
+                  Waze
+                </button>
+                <button
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  onClick={() => {
+                    const [lat, lng] = selectedEvent.location;
+                    window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
+                    setShowNavigateMenu(false);
+                  }}
+                >
+                  Google Maps
+                </button>
+                <button
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  onClick={() => {
+                    const [lat, lng] = selectedEvent.location;
+                    window.open(`https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`, '_blank');
+                    setShowNavigateMenu(false);
+                  }}
+                >
+                  Apple Maps
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 overflow-hidden">
