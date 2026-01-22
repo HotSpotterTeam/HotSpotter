@@ -1,16 +1,18 @@
-import { X, Calendar, CircleDot, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Calendar, CircleDot, ChevronDown, ChevronUp, MapPin } from "lucide-react";
 import { useAppSelector } from "../store/hooks";
 import { useDispatch } from "react-redux";
-import { setShowFilterPanel, setMapFilters } from "../state/AppSlice";
+import { setShowFilterPanel, setMapFilters, setOnChooseDistanceLocation } from "../state/AppSlice";
 import { categoryIcons } from "../icons";
 import { useState, useRef, useEffect } from "react";
 
 export default function FilterPanel() {
   const dispatch = useDispatch();
   const mapFilters = useAppSelector((state) => state.app.mapFilters);
+  const currentUserLocation = useAppSelector((state) => state.app.currentUserLocation);
   const [filterType, setFilterType] = useState<"spots" | "events">("events");
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isTimeFilterOpen, setIsTimeFilterOpen] = useState(false);
+  const [isDistanceFilterOpen, setIsDistanceFilterOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Available categories for spots (excluding 'event' and 'default')
@@ -65,6 +67,7 @@ export default function FilterPanel() {
       spotCategories: [],
       eventCategories: [],
       timeFilter: { type: "all" },
+      distanceFilter: { enabled: false, fromLocation: "", customLocation: null, radius: 0.2 }
     }));
   };
 
@@ -93,7 +96,8 @@ export default function FilterPanel() {
   const hasActiveFilters = 
     mapFilters.spotCategories.length > 0 || 
     mapFilters.eventCategories.length > 0 ||
-    mapFilters.timeFilter.type !== "all";
+    mapFilters.timeFilter.type !== "all" ||
+    mapFilters.distanceFilter.enabled;
 
   const currentCategories = filterType === "spots" 
     ? mapFilters.spotCategories 
@@ -308,11 +312,148 @@ export default function FilterPanel() {
                       />
                     </div>
                   </div>
-                )}
-              </>
+                )}              </>
             )}
           </div>
         )}
+
+        {/* Distance Filter */}
+        <div className="border-t pt-3 mt-3">
+          <button
+            onClick={() => setIsDistanceFilterOpen(!isDistanceFilterOpen)}
+            className="w-full flex items-center justify-between mb-2 hover:bg-gray-50 p-2 rounded-lg transition-colors"
+          >
+            <h4 className="text-xs font-semibold text-gray-700">Distance Filter</h4>
+            {isDistanceFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+
+          {isDistanceFilterOpen && (
+            <>
+              {/* Enable/Disable Toggle */}
+              <label className="flex items-center gap-2 mb-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={mapFilters.distanceFilter.enabled}
+                  onChange={(e) => {
+                    dispatch(setMapFilters({
+                      ...mapFilters,
+                      distanceFilter: {
+                        ...mapFilters.distanceFilter,
+                        enabled: e.target.checked
+                      }
+                    }));
+                  }}
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-xs text-gray-700 font-medium">Enable Distance Filter</span>
+              </label>
+
+              {mapFilters.distanceFilter.enabled && (
+                <>
+                  {/* Location Source - All in one line */}
+                  <div className="mb-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <label className="text-[10px] text-gray-600 whitespace-nowrap">From Location</label>
+                      <button
+                        onClick={() => {
+                          dispatch(setMapFilters({
+                            ...mapFilters,
+                            distanceFilter: {
+                              ...mapFilters.distanceFilter,
+                              fromLocation: "current"
+                            }
+                          }));
+                        }}
+                        className={`py-1 px-1.5 rounded text-[10px] font-medium transition-all flex items-center gap-0.5 ${
+                          mapFilters.distanceFilter.fromLocation === "current"
+                            ? "bg-white text-blue-600 border border-blue-500 shadow-sm"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200"
+                        }`}
+                      >
+                        <MapPin size={10} />
+                        My Location
+                      </button>
+                      <button
+                        onClick={() => {
+                          dispatch(setMapFilters({
+                            ...mapFilters,
+                            distanceFilter: {
+                              ...mapFilters.distanceFilter,
+                              fromLocation: "custom"
+                            }
+                          }));
+                          dispatch(setOnChooseDistanceLocation(true));
+                        }}
+                        className={`py-1 px-1.5 rounded text-[10px] font-medium transition-all whitespace-nowrap ${
+                          mapFilters.distanceFilter.fromLocation === "custom"
+                            ? "bg-white text-blue-600 border border-blue-500 shadow-sm"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200"
+                        }`}
+                      >
+                        Choose on Map
+                      </button>
+                      {(mapFilters.distanceFilter.fromLocation === "current" || mapFilters.distanceFilter.customLocation) && (
+                        <button
+                          onClick={() => {
+                            dispatch(setMapFilters({
+                              ...mapFilters,
+                              distanceFilter: {
+                                ...mapFilters.distanceFilter,
+                                fromLocation: "",
+                                customLocation: null
+                              }
+                            }));
+                          }}
+                          className="text-[10px] text-orange-600 hover:text-orange-700 font-medium ml-auto"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                    {mapFilters.distanceFilter.fromLocation === "custom" && !mapFilters.distanceFilter.customLocation && (
+                      <div className="text-[10px] text-orange-600">
+                        Click on map to select location
+                      </div>
+                    )}
+                    {mapFilters.distanceFilter.fromLocation === "current" && !currentUserLocation && (
+                      <div className="text-[10px] text-orange-600">
+                        Location not available
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Distance Slider */}
+                  <div className="mb-2">
+                    <label className="block text-[10px] text-gray-600 mb-1">
+                      Radius: {mapFilters.distanceFilter.radius.toFixed(1)} km
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.2"
+                      value={mapFilters.distanceFilter.radius}
+                      onChange={(e) => {
+                        dispatch(setMapFilters({
+                          ...mapFilters,
+                          distanceFilter: {
+                            ...mapFilters.distanceFilter,
+                            radius: parseFloat(e.target.value)
+                          }
+                        }));
+                      }}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                    <div className="flex justify-between text-[9px] text-gray-500 mt-1">
+                      <span>0 km</span>
+                      <span>1 km</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

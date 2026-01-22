@@ -11,6 +11,19 @@ import { useSpots } from "../queries";
 import { categoryIcons, categoryColors } from "../icons";
 import type { TimeFilter } from "../state/AppSlice";
 
+// Helper function to calculate distance between two points using Haversine formula
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371; // Radius of Earth in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in kilometers
+}
+
 // Time filtering helper function (same as MapView)
 function filterEventsByTime(events: Event[], timeFilter: TimeFilter) {
   if (timeFilter.type === "all") return events;
@@ -80,6 +93,7 @@ export default function Sidebar({
   // --- Get Map Filters from Redux ---
   const mapFilters = useAppSelector((state: RootState) => state.app.mapFilters);
   const showFilterPanel = useAppSelector((state: RootState) => state.app.showFilterPanel);
+  const currentUserLocation = useAppSelector((state: RootState) => state.app.currentUserLocation);
   
   // --- View Toggle State (Events or Spots) ---
   const [viewMode, setViewMode] = useState<"events" | "spots">("events");
@@ -88,7 +102,8 @@ export default function Sidebar({
   const hasActiveFilters = 
     mapFilters.spotCategories.length > 0 || 
     mapFilters.eventCategories.length > 0 ||
-    mapFilters.timeFilter.type !== "all";
+    mapFilters.timeFilter.type !== "all" ||
+    mapFilters.distanceFilter.enabled;
   
   // --- Search State ---
   const [searchTerm, setSearchTerm] = useState("");
@@ -158,18 +173,58 @@ export default function Sidebar({
   }) || [];
 
   // Apply time filter to events
-  const filteredEvents = filterEventsByTime(categoryFilteredEvents, mapFilters.timeFilter);
+  const timeFilteredEvents = filterEventsByTime(categoryFilteredEvents, mapFilters.timeFilter);
+
+  // Apply distance filter to events
+  const distanceFilteredEvents = timeFilteredEvents.filter((event: Event) => {
+    if (!mapFilters.distanceFilter.enabled) return true;
+    
+    const center = mapFilters.distanceFilter.fromLocation === "current"
+      ? currentUserLocation
+      : mapFilters.distanceFilter.customLocation;
+    
+    if (!center || !event.location || event.location.length < 2) return true;
+    
+    const distance = calculateDistance(
+      center.lat,
+      center.lng,
+      event.location[0],
+      event.location[1]
+    );
+    
+    return distance <= mapFilters.distanceFilter.radius;
+  });
 
   // Sort events by start time (soonest first)
-  const sortedEvents = [...filteredEvents].sort((a, b) => {
+  const sortedEvents = [...distanceFilteredEvents].sort((a, b) => {
     return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
   });
 
   // Apply category filters to spots
-  const filteredSpots = spots?.filter((spot: Spot) => {
+  const categoryFilteredSpots = spots?.filter((spot: Spot) => {
     if (mapFilters.spotCategories.length === 0) return true;
     return mapFilters.spotCategories.includes(spot.category || "default");
   }) || [];
+
+  // Apply distance filter to spots
+  const filteredSpots = categoryFilteredSpots.filter((spot: Spot) => {
+    if (!mapFilters.distanceFilter.enabled) return true;
+    
+    const center = mapFilters.distanceFilter.fromLocation === "current"
+      ? currentUserLocation
+      : mapFilters.distanceFilter.customLocation;
+    
+    if (!center || !spot.location || spot.location.length < 2) return true;
+    
+    const distance = calculateDistance(
+      center.lat,
+      center.lng,
+      spot.location[0],
+      spot.location[1]
+    );
+    
+    return distance <= mapFilters.distanceFilter.radius;
+  });
 
   // Determine what to display: Search Results OR Filtered Events/Spots
   const isSearchMode = searchTerm.trim().length > 0;
