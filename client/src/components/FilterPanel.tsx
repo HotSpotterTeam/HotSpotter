@@ -1,4 +1,4 @@
-import { X, Calendar, CircleDot } from "lucide-react";
+import { X, Calendar, CircleDot, ChevronDown, ChevronUp } from "lucide-react";
 import { useAppSelector } from "../store/hooks";
 import { useDispatch } from "react-redux";
 import { setShowFilterPanel, setMapFilters } from "../state/AppSlice";
@@ -9,6 +9,8 @@ export default function FilterPanel() {
   const dispatch = useDispatch();
   const mapFilters = useAppSelector((state) => state.app.mapFilters);
   const [filterType, setFilterType] = useState<"spots" | "events">("events");
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [isTimeFilterOpen, setIsTimeFilterOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Available categories for spots (excluding 'event' and 'default')
@@ -66,7 +68,7 @@ export default function FilterPanel() {
     }));
   };
 
-  const handleTimeFilterChange = (type: "all" | "today" | "weekend" | "custom") => {
+  const handleTimeFilterChange = (type: "all" | "today" | "tomorrow" | "weekend" | "active" | "custom") => {
     dispatch(setMapFilters({
       ...mapFilters,
       timeFilter: { type },
@@ -151,130 +153,163 @@ export default function FilterPanel() {
           </button>
         </div>
 
-        {/* Categories Grid */}
-        <div 
-          className={`grid grid-cols-3 gap-2 p-3 rounded-lg border-2 ${
-            filterType === "spots" 
-              ? "border-blue-500 bg-blue-50/30" 
-              : "border-orange-500 bg-orange-50/30"
-          }`}
-        >
-          {categories.map((category) => {
-            const Icon = categoryIcons[category as keyof typeof categoryIcons] || categoryIcons.default;
-            const isSelected = currentCategories.includes(category);
-            
-            return (
-              <label
-                key={`${filterType}-${category}`}
-                className={`flex items-center gap-1.5 p-2 rounded-lg cursor-pointer transition-colors ${
-                  isSelected 
-                    ? filterType === "spots"
-                      ? "bg-blue-50 border-2 border-blue-200"
-                      : "bg-orange-50 border-2 border-orange-200"
-                    : "bg-gray-50 hover:bg-gray-100 border-2 border-transparent"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => handleCategoryToggle(category)}
-                  className={`w-3 h-3 rounded focus:ring-1 ${
-                    filterType === "spots" 
-                      ? "text-blue-600 focus:ring-blue-500" 
-                      : "text-orange-600 focus:ring-orange-500"
-                  }`}
-                />
-                <Icon size={14} className="text-gray-600 flex-shrink-0" />
-                <span className="text-xs text-gray-700 capitalize truncate">
-                  {category.replace(/_/g, " ")}
-                </span>
-              </label>
-            );
-          })}
+        {/* Category Filter Section */}
+        <div className="border-t pt-3 mt-3">
+          <button
+            onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+            className="w-full flex items-center justify-between mb-2 hover:bg-gray-50 p-2 rounded-lg transition-colors"
+          >
+            <h4 className="text-xs font-semibold text-gray-700">Category Filter</h4>
+            {isCategoryOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+
+          {/* Categories Grid */}
+          {isCategoryOpen && (
+            <div 
+              className={`grid grid-cols-3 gap-2 p-3 rounded-lg border-2 ${
+                filterType === "spots" 
+                  ? "border-blue-500 bg-blue-50/30" 
+                  : "border-orange-500 bg-orange-50/30"
+              }`}
+            >
+              {categories.map((category) => {
+                const Icon = categoryIcons[category as keyof typeof categoryIcons] || categoryIcons.default;
+                const isSelected = currentCategories.includes(category);
+                
+                return (
+                  <label
+                    key={`${filterType}-${category}`}
+                    className={`flex items-center gap-1.5 p-2 rounded-lg cursor-pointer transition-colors ${
+                      isSelected 
+                        ? filterType === "spots"
+                          ? "bg-blue-50 border-2 border-blue-200"
+                          : "bg-orange-50 border-2 border-orange-200"
+                        : "bg-gray-50 hover:bg-gray-100 border-2 border-transparent"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleCategoryToggle(category)}
+                      className={`w-3 h-3 rounded focus:ring-1 ${
+                        filterType === "spots" 
+                          ? "text-blue-600 focus:ring-blue-500" 
+                          : "text-orange-600 focus:ring-orange-500"
+                      }`}
+                    />
+                    <Icon size={14} className="text-gray-600 flex-shrink-0" />
+                    <span className="text-xs text-gray-700 capitalize truncate">
+                      {category.replace(/_/g, " ")}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Time Filter for Events */}
         {filterType === "events" && (
           <div className="border-t pt-3 mt-3">
-            <h4 className="text-xs font-semibold text-gray-700 mb-2">Time Filter</h4>
-            
-            {/* Time Filter Buttons */}
-            <div className="grid grid-cols-4 gap-1.5 mb-2">
-              <button
-                onClick={() => handleTimeFilterChange("all")}
-                className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
-                  mapFilters.timeFilter.type === "all"
-                    ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
-                }`}
-              >
-                All Time
-              </button>
-              <button
-                onClick={() => handleTimeFilterChange("today")}
-                className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
-                  mapFilters.timeFilter.type === "today"
-                    ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
-                }`}
-              >
-                Today
-              </button>
-              <button
-                onClick={() => handleTimeFilterChange("tomorrow")}
-                className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
-                  mapFilters.timeFilter.type === "tomorrow"
-                    ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
-                }`}
-              >
-                Tomorrow
-              </button>
-              <button
-                onClick={() => handleTimeFilterChange("weekend")}
-                className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
-                  mapFilters.timeFilter.type === "weekend"
-                    ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
-                }`}
-              >
-                Weekend
-              </button>
-            </div>
-
-            {/* Custom Date Range */}
             <button
-              onClick={() => handleTimeFilterChange("custom")}
-              className={`w-full py-1.5 px-2 rounded-lg text-xs font-medium transition-all mb-2 ${
-                mapFilters.timeFilter.type === "custom"
-                  ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
-              }`}
+              onClick={() => setIsTimeFilterOpen(!isTimeFilterOpen)}
+              className="w-full flex items-center justify-between mb-2 hover:bg-gray-50 p-2 rounded-lg transition-colors"
             >
-              Custom Range
+              <h4 className="text-xs font-semibold text-gray-700">Time Filter</h4>
+              {isTimeFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>
 
-            {mapFilters.timeFilter.type === "custom" && (
-              <div className="grid grid-cols-2 gap-1.5 mt-2">
-                <div>
-                  <label className="block text-[10px] text-gray-600 mb-1">Start Date</label>
-                  <input
-                    type="date"
-                    value={mapFilters.timeFilter.startDate || ""}
-                    onChange={(e) => handleCustomDateChange("startDate", e.target.value)}
-                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
-                  />
+            {isTimeFilterOpen && (
+              <>
+                {/* Time Filter Buttons - All Time, Active, Today, Tomorrow, Weekend */}
+                <div className="grid grid-cols-5 gap-1 mb-2">
+                  <button
+                    onClick={() => handleTimeFilterChange("all")}
+                    className={`py-1.5 px-0.5 rounded-lg text-[11px] font-medium transition-all ${
+                      mapFilters.timeFilter.type === "all"
+                        ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
+                    }`}
+                  >
+                    All Time
+                  </button>
+                  <button
+                    onClick={() => handleTimeFilterChange("active")}
+                    className={`py-1.5 px-0.5 rounded-lg text-[11px] font-medium transition-all ${
+                      mapFilters.timeFilter.type === "active"
+                        ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
+                    }`}
+                  >
+                    Active
+                  </button>
+                  <button
+                    onClick={() => handleTimeFilterChange("today")}
+                    className={`py-1.5 px-0.5 rounded-lg text-[11px] font-medium transition-all ${
+                      mapFilters.timeFilter.type === "today"
+                        ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
+                    }`}
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => handleTimeFilterChange("tomorrow")}
+                    className={`py-1.5 px-0.5 rounded-lg text-[11px] font-medium transition-all ${
+                      mapFilters.timeFilter.type === "tomorrow"
+                        ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
+                    }`}
+                  >
+                    Tomorrow
+                  </button>
+                  <button
+                    onClick={() => handleTimeFilterChange("weekend")}
+                    className={`py-1.5 px-0.5 rounded-lg text-[11px] font-medium transition-all ${
+                      mapFilters.timeFilter.type === "weekend"
+                        ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
+                    }`}
+                  >
+                    Weekend
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-[10px] text-gray-600 mb-1">End Date</label>
-                  <input
-                    type="date"
-                    value={mapFilters.timeFilter.endDate || ""}
-                    onChange={(e) => handleCustomDateChange("endDate", e.target.value)}
-                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
-                  />
-                </div>
-              </div>
+
+                {/* Custom Date Range */}
+                <button
+                  onClick={() => handleTimeFilterChange("custom")}
+                  className={`w-full py-1.5 px-2 rounded-lg text-xs font-medium transition-all mb-2 ${
+                    mapFilters.timeFilter.type === "custom"
+                      ? "bg-white text-orange-600 border-2 border-orange-500 shadow-sm"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-200"
+                  }`}
+                >
+                  Custom Range
+                </button>
+
+                {mapFilters.timeFilter.type === "custom" && (
+                  <div className="grid grid-cols-2 gap-1.5 mt-2">
+                    <div>
+                      <label className="block text-[10px] text-gray-600 mb-1">Start Date</label>
+                      <input
+                        type="date"
+                        value={mapFilters.timeFilter.startDate || ""}
+                        onChange={(e) => handleCustomDateChange("startDate", e.target.value)}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-600 mb-1">End Date</label>
+                      <input
+                        type="date"
+                        value={mapFilters.timeFilter.endDate || ""}
+                        onChange={(e) => handleCustomDateChange("endDate", e.target.value)}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

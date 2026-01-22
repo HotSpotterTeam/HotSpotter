@@ -8,7 +8,7 @@ export type Location = {
 };
 
 export type TimeFilter = {
-  type: "all" | "today" | "tomorrow" | "weekend" | "custom";
+  type: "all" | "today" | "tomorrow" | "weekend" | "active" | "custom";
   startDate?: string;
   endDate?: string;
 };

@@ -16,34 +16,39 @@ function filterEventsByTime(events: Event[], timeFilter: TimeFilter) {
   if (timeFilter.type === "all") return events;
 
   const now = new Date();
-  now.setHours(0, 0, 0, 0);
+  const nowForToday = new Date();
+  nowForToday.setHours(0, 0, 0, 0);
 
   return events.filter((event: Event) => {
     const eventStart = new Date(event.start_time);
     const eventEnd = new Date(event.end_time);
     
     switch (timeFilter.type) {
+      case "active": {
+        return event.status === "active" && eventStart <= now && eventEnd >= now;
+      }
       case "today": {
-        const endOfToday = new Date(now);
+        const endOfToday = new Date(nowForToday);
         endOfToday.setHours(23, 59, 59, 999);
-        return eventStart <= endOfToday && eventEnd >= now;
+        return eventStart <= endOfToday && eventEnd >= nowForToday;
       }
       case "tomorrow": {
-        const startOfTomorrow = new Date(now);
+        const startOfTomorrow = new Date(nowForToday);
         startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
         const endOfTomorrow = new Date(startOfTomorrow);
         endOfTomorrow.setHours(23, 59, 59, 999);
         return eventStart <= endOfTomorrow && eventEnd >= startOfTomorrow;
       }
       case "weekend": {
-        const dayOfWeek = now.getDay();
-        const daysUntilSaturday = dayOfWeek === 6 ? 0 : dayOfWeek === 0 ? 6 : 6 - dayOfWeek;
-        const saturday = new Date(now);
-        saturday.setDate(saturday.getDate() + daysUntilSaturday);
-        const sunday = new Date(saturday);
-        sunday.setDate(sunday.getDate() + 1);
-        sunday.setHours(23, 59, 59, 999);
-        return eventStart <= sunday && eventEnd >= saturday;
+        const dayOfWeek = nowForToday.getDay();
+        // Friday is 5, Saturday is 6
+        const daysUntilFriday = dayOfWeek === 5 ? 0 : dayOfWeek === 6 ? 6 : (5 - dayOfWeek + 7) % 7;
+        const friday = new Date(nowForToday);
+        friday.setDate(friday.getDate() + daysUntilFriday);
+        const saturday = new Date(friday);
+        saturday.setDate(saturday.getDate() + 1);
+        saturday.setHours(23, 59, 59, 999);
+        return eventStart <= saturday && eventEnd >= friday;
       }
       case "custom": {
         if (!timeFilter.startDate || !timeFilter.endDate) return true;
