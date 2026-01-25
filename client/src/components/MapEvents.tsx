@@ -95,8 +95,11 @@ export default function MapEvents() {
     },
   });
 
-  // Request user's location when component mounts
+  // Request user's location and set initial bounds when component mounts
   useEffect(() => {
+    // Set initial bounds immediately so queries can run
+    updateBounds();
+
     map.locate({
       enableHighAccuracy: true,
       watch: false, // Set to true if you want continuous updates

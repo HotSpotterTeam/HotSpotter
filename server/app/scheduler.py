@@ -43,13 +43,49 @@ def schedule_event_status_updates():
     logger.info("Scheduled event status updates to run every 1 minute")
 
 
+def schedule_trending_cache_refresh():
+    """
+    Schedule trending cache refresh to run every minute.
+    This batch-calculates trending scores to avoid per-request DB queries.
+    """
+    from app.trending_cache import refresh_all_trending_scores
+    from app.db import get_session
+
+    def refresh_job():
+        session = get_session()
+        try:
+            refresh_all_trending_scores(session)
+        finally:
+            session.close()
+
+    scheduler.add_job(
+        func=refresh_job,
+        trigger=CronTrigger(minute='*'),
+        id='refresh_trending_cache',
+        name='Refresh trending scores cache',
+        replace_existing=True
+    )
+
+    logger.info("Scheduled trending cache refresh to run every 1 minute")
+
+
 def run_all_scheduled_tasks_now():
     """
     Manually trigger all scheduled tasks immediately.
     Useful for testing or on-demand updates.
     """
     from app.event_status_updater import update_event_statuses
+    from app.trending_cache import refresh_all_trending_scores
+    from app.db import get_session
 
     logger.info("Manually triggering all scheduled tasks")
     result = update_event_statuses()
+
+    # Refresh trending cache
+    session = get_session()
+    try:
+        refresh_all_trending_scores(session)
+    finally:
+        session.close()
+
     return result
