@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
 import { useEffect } from "react";
 import { setEvents } from "./state/EventsSlice";
-import { Event } from "./generated-types";
+import { Event, Spot } from "./generated-types";
 import { useAppSelector } from "./store/hooks";
 import { RootState } from "./state/store";
 
@@ -63,17 +63,6 @@ export type Bounds = {
   maxLat: number;
   minLng: number;
   maxLng: number;
-};
-
-export type Spot = {
-  id: number;
-  name: string;
-  description?: string;
-  location: [number, number]; // [lat, lng]
-  category: string;
-  is_approved: boolean;
-  spot_type: string;
-  address?: string;
 };
 
 export function useSpots() {

@@ -22,6 +22,14 @@ const publicFetch = async <T>(endpoint: string, options: RequestInit = {}): Prom
 // --- Exported API Functions ---
 
 /**
+ * Get a single spot by ID.
+ */
+export const getSpotById = async (spotId: number): Promise<Spot> => {
+  const res: any = await publicFetch(`/api/spots/${spotId}`);
+  return res as Spot;
+};
+
+/**
  * Search for spots by name or description.
  * If query is empty, it returns all approved spots (or you could return empty array).
  */

@@ -519,8 +519,8 @@ const UserProfilePage = () => {
         <TabButton id="spots" label="My Spots" icon={MapPin} count={totals.spots} />
         <TabButton id="events" label="My Events" icon={Calendar} count={totals.events} />
         <TabButton id="reports" label="My Reports" icon={Flag} count={totals.reports} />
-        <TabButton id="favorites" label="Saved Spots" icon={MapPin} count={totals.favorites} />
-        <TabButton id="subscriptions" label="Joined Events" icon={Calendar} count={totals.subscriptions} />
+        <TabButton id="favorites" label="Favorite Spots" icon={MapPin} count={totals.favorites} />
+        <TabButton id="subscriptions" label="Subscribed Events" icon={Calendar} count={totals.subscriptions} />
       </div>
 
       <div className="flex-1 p-8 max-w-6xl mx-auto w-full">
@@ -651,7 +651,7 @@ const UserProfilePage = () => {
                             )}
                           </div>
                           <div className="text-xs text-gray-600">
-                            <div><span className="text-gray-500">Start:</span> {new Date(event.start_time).toLocaleDateString('en-GB')}</div>
+                            <div><span className="text-gray-500">Start:</span> {new Date(event.start_time).toLocaleDateString('en-GB')} {new Date(event.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
                           </div>
                         </div>
                         <button
@@ -708,11 +708,11 @@ const UserProfilePage = () => {
                       <div className="grid grid-cols-2 gap-3 text-xs text-gray-600 mb-3">
                         <div>
                           <span className="text-gray-500">Start:</span>{" "}
-                          {new Date(event.start_time).toLocaleDateString('en-GB')}
+                          {new Date(event.start_time).toLocaleDateString('en-GB')} {new Date(event.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                         </div>
                         <div>
                           <span className="text-gray-500">End:</span>{" "}
-                          {new Date(event.end_time).toLocaleDateString('en-GB')}
+                          {new Date(event.end_time).toLocaleDateString('en-GB')} {new Date(event.end_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
                       <div className="flex items-center gap-4 text-xs text-gray-500">
@@ -842,7 +842,7 @@ const UserProfilePage = () => {
               <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
                 <MapPin size={48} className="mx-auto text-gray-300 mb-3" />
                 <p className="text-gray-500">
-                  {searchTerm ? "No favorite spots match your search" : "You haven't saved any spots yet"}
+                  {searchTerm ? "No favorite spots match your search" : "You haven't favorited any spots yet"}
                 </p>
               </div>
             ) : (
@@ -892,7 +892,7 @@ const UserProfilePage = () => {
               <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
                 <Calendar size={48} className="mx-auto text-gray-300 mb-3" />
                 <p className="text-gray-500">
-                  {searchTerm ? "No joined events match your search" : "You haven't joined any events yet"}
+                  {searchTerm ? "No subscribed events match your search" : "You haven't subscribed to any events yet"}
                 </p>
               </div>
             ) : (
@@ -915,11 +915,11 @@ const UserProfilePage = () => {
                       <div className="grid grid-cols-2 gap-3 text-xs text-gray-600 mb-3">
                         <div>
                           <span className="text-gray-500">Start:</span>{" "}
-                          {new Date(event.start_time).toLocaleDateString('en-GB')}
+                          {new Date(event.start_time).toLocaleDateString('en-GB')} {new Date(event.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                         </div>
                         <div>
                           <span className="text-gray-500">End:</span>{" "}
-                          {new Date(event.end_time).toLocaleDateString('en-GB')}
+                          {new Date(event.end_time).toLocaleDateString('en-GB')} {new Date(event.end_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
                       <div className="flex items-center gap-4 text-xs text-gray-500">

@@ -11,45 +11,62 @@ import { useSpots } from "../queries";
 import { categoryIcons, categoryColors } from "../icons";
 import type { TimeFilter } from "../state/AppSlice";
 
+// Helper function to calculate distance between two points using Haversine formula
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371; // Radius of Earth in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in kilometers
+}
+
 // Time filtering helper function (same as MapView)
 function filterEventsByTime(events: Event[], timeFilter: TimeFilter) {
   if (timeFilter.type === "all") return events;
 
   const now = new Date();
-  now.setHours(0, 0, 0, 0);
+  const nowForToday = new Date();
+  nowForToday.setHours(0, 0, 0, 0);
 
   return events.filter((event: Event) => {
     const eventStart = new Date(event.start_time);
     const eventEnd = new Date(event.end_time);
     
     switch (timeFilter.type) {
+      case "active": {
+        return event.status === "active" && eventStart <= now && eventEnd >= now;
+      }
       case "today": {
-        const endOfToday = new Date(now);
+        const endOfToday = new Date(nowForToday);
         endOfToday.setHours(23, 59, 59, 999);
-        return eventStart <= endOfToday && eventEnd >= now;
+        return eventStart <= endOfToday && eventEnd >= nowForToday;
       }
       case "tomorrow": {
-        const startOfTomorrow = new Date(now);
+        const startOfTomorrow = new Date(nowForToday);
         startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
         const endOfTomorrow = new Date(startOfTomorrow);
         endOfTomorrow.setHours(23, 59, 59, 999);
         return eventStart <= endOfTomorrow && eventEnd >= startOfTomorrow;
       }
       case "weekend": {
-        const dayOfWeek = now.getDay();
-        const daysUntilSaturday = dayOfWeek === 6 ? 0 : dayOfWeek === 0 ? 6 : 6 - dayOfWeek;
-        const saturday = new Date(now);
-        saturday.setDate(saturday.getDate() + daysUntilSaturday);
-        const sunday = new Date(saturday);
-        sunday.setDate(sunday.getDate() + 1);
-        sunday.setHours(23, 59, 59, 999);
-        return eventStart <= sunday && eventEnd >= saturday;
+        const dayOfWeek = nowForToday.getDay();
+        // Friday is 5, Saturday is 6
+        const daysUntilFriday = dayOfWeek === 5 ? 0 : dayOfWeek === 6 ? 6 : (5 - dayOfWeek + 7) % 7;
+        const friday = new Date(nowForToday);
+        friday.setDate(friday.getDate() + daysUntilFriday);
+        const saturday = new Date(friday);
+        saturday.setDate(saturday.getDate() + 1);
+        saturday.setHours(23, 59, 59, 999);
+        return eventStart <= saturday && eventEnd >= friday;
       }
       case "custom": {
         if (!timeFilter.startDate || !timeFilter.endDate) return true;
         const filterStart = new Date(timeFilter.startDate);
         const filterEnd = new Date(timeFilter.endDate);
-        filterEnd.setHours(23, 59, 59, 999);
         return eventStart <= filterEnd && eventEnd >= filterStart;
       }
       default:
@@ -75,6 +92,7 @@ export default function Sidebar({
   // --- Get Map Filters from Redux ---
   const mapFilters = useAppSelector((state: RootState) => state.app.mapFilters);
   const showFilterPanel = useAppSelector((state: RootState) => state.app.showFilterPanel);
+  const currentUserLocation = useAppSelector((state: RootState) => state.app.currentUserLocation);
   
   // --- View Toggle State (Events or Spots) ---
   const [viewMode, setViewMode] = useState<"events" | "spots">("events");
@@ -83,7 +101,8 @@ export default function Sidebar({
   const hasActiveFilters = 
     mapFilters.spotCategories.length > 0 || 
     mapFilters.eventCategories.length > 0 ||
-    mapFilters.timeFilter.type !== "all";
+    mapFilters.timeFilter.type !== "all" ||
+    mapFilters.distanceFilter.enabled;
   
   // --- Search State ---
   const [searchTerm, setSearchTerm] = useState("");
@@ -153,18 +172,58 @@ export default function Sidebar({
   }) || [];
 
   // Apply time filter to events
-  const filteredEvents = filterEventsByTime(categoryFilteredEvents, mapFilters.timeFilter);
+  const timeFilteredEvents = filterEventsByTime(categoryFilteredEvents, mapFilters.timeFilter);
+
+  // Apply distance filter to events
+  const distanceFilteredEvents = timeFilteredEvents.filter((event: Event) => {
+    if (!mapFilters.distanceFilter.enabled) return true;
+    
+    const center = mapFilters.distanceFilter.fromLocation === "current"
+      ? currentUserLocation
+      : mapFilters.distanceFilter.customLocation;
+    
+    if (!center || !event.location || event.location.length < 2) return true;
+    
+    const distance = calculateDistance(
+      center.lat,
+      center.lng,
+      event.location[0],
+      event.location[1]
+    );
+    
+    return distance <= mapFilters.distanceFilter.radius;
+  });
 
   // Sort events by start time (soonest first)
-  const sortedEvents = [...filteredEvents].sort((a, b) => {
+  const sortedEvents = [...distanceFilteredEvents].sort((a, b) => {
     return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
   });
 
   // Apply category filters to spots
-  const filteredSpots = spots?.filter((spot: Spot) => {
+  const categoryFilteredSpots = spots?.filter((spot: Spot) => {
     if (mapFilters.spotCategories.length === 0) return true;
     return mapFilters.spotCategories.includes(spot.category || "default");
   }) || [];
+
+  // Apply distance filter to spots
+  const filteredSpots = categoryFilteredSpots.filter((spot: Spot) => {
+    if (!mapFilters.distanceFilter.enabled) return true;
+    
+    const center = mapFilters.distanceFilter.fromLocation === "current"
+      ? currentUserLocation
+      : mapFilters.distanceFilter.customLocation;
+    
+    if (!center || !spot.location || spot.location.length < 2) return true;
+    
+    const distance = calculateDistance(
+      center.lat,
+      center.lng,
+      spot.location[0],
+      spot.location[1]
+    );
+    
+    return distance <= mapFilters.distanceFilter.radius;
+  });
 
   // Determine what to display: Search Results OR Filtered Events/Spots
   const isSearchMode = searchTerm.trim().length > 0;
@@ -344,15 +403,28 @@ export default function Sidebar({
                               </span>
                             </div>
 
-                            <div className="flex items-center justify-between text-sm text-gray-600 mt-2">
-                              <div className="flex items-center gap-3">
-                                <span className="flex items-center gap-1 text-green-600">
-                                  Start: {new Date(event.start_time).toLocaleDateString('en-GB')}
-                                </span>
-                                <span className="flex items-center gap-1 capitalize">
-                                  {event.status}
+                            <div className="flex items-center justify-between text-xs text-gray-600 mt-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-700 font-medium">
+                                  {(() => {
+                                    const startDate = new Date(event.start_time);
+                                    const endDate = new Date(event.end_time);
+                                    const isSameDay = startDate.toDateString() === endDate.toDateString();
+                                    const startStr = `${startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${startDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+                                    const endStr = isSameDay 
+                                      ? endDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                                      : `${endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${endDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+                                    return `${startStr} \u2013 ${endStr}`;
+                                  })()}
                                 </span>
                               </div>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full capitalize ${
+                                event.status === 'active' 
+                                  ? 'bg-green-100 text-green-700' 
+                                  : 'bg-gray-100 text-gray-600'
+                              }`}>
+                                {event.status}
+                              </span>
                             </div>
                           </div>
                         );
@@ -460,15 +532,28 @@ export default function Sidebar({
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-sm text-gray-600 mt-2">
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1 text-green-600">
-                          Start: {new Date(event.start_time).toLocaleDateString('en-GB')}
-                        </span>
-                        <span className="flex items-center gap-1 capitalize">
-                          {event.status}
+                    <div className="flex items-center justify-between text-xs text-gray-600 mt-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-700 font-medium">
+                          {(() => {
+                            const startDate = new Date(event.start_time);
+                            const endDate = new Date(event.end_time);
+                            const isSameDay = startDate.toDateString() === endDate.toDateString();
+                            const startStr = `${startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${startDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+                            const endStr = isSameDay 
+                              ? endDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                              : `${endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${endDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+                            return `${startStr} \u2013 ${endStr}`;
+                          })()}
                         </span>
                       </div>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full capitalize ${
+                        event.status === 'active' 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {event.status}
+                      </span>
                     </div>
                   </div>
                   );

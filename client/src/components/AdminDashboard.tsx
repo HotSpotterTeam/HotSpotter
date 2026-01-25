@@ -564,8 +564,8 @@ const AdminDashboard = () => {
                     </td>
                     <td className="p-4 text-sm text-gray-500">
                       <div className="flex flex-col text-xs">
-                         <span className="text-green-600">Start: {new Date(event.start_time).toLocaleDateString('en-GB')}</span>
-                         <span className="text-red-500">End: {new Date(event.end_time).toLocaleDateString('en-GB')}</span>
+                         <span className="text-green-600">Start: {new Date(event.start_time).toLocaleDateString('en-GB')} {new Date(event.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                         <span className="text-red-500">End: {new Date(event.end_time).toLocaleDateString('en-GB')} {new Date(event.end_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                     </td>
                     <td className="p-4 text-sm text-gray-500">
