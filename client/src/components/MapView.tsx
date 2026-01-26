@@ -2,35 +2,22 @@ import { useState, useEffect } from "react";
 import {
   MapContainer,
   TileLayer,
-  Marker,
-  Popup,
   useMap,
   Circle,
   CircleMarker,
 } from "react-leaflet";
-import MarkerClusterGroup from "react-leaflet-cluster";
 import { Navigation, AlertCircle, Filter } from "lucide-react";
+import SpotMarkers from "./SpotMarkers";
+import EventMarkers from "./EventMarkers";
 import { useAppSelector } from "../store/hooks";
 import { RootState } from "../state/store";
 import MapEvents from "./MapEvents";
 import FilterPanel from "./FilterPanel";
 import { useSpots, useEvents } from "../queries";
 import { TEL_AVIV_DEFAULT } from "../constants";
-import { categoryIcons, categoryColors, createCustomIcon } from "../icons";
 import { useSelector, useDispatch } from "react-redux";
 import { setShowFilterPanel } from "../state/AppSlice";
-import type { TimeFilter, Location } from "../state/AppSlice";
-import L from "leaflet";
-
-// Custom cluster icon for events (orange to distinguish from spots)
-const createEventClusterIcon = (cluster: L.MarkerCluster) => {
-  const count = cluster.getChildCount();
-  return L.divIcon({
-    html: `<div style="background: #f97316; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">${count}</div>`,
-    className: 'event-cluster-icon',
-    iconSize: L.point(40, 40),
-  });
-};
+import type { TimeFilter } from "../state/AppSlice";
 
 // Helper function to calculate distance between two points using Haversine formula
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -43,16 +30,6 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
     Math.sin(dLng / 2) * Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c; // Distance in kilometers
-}
-
-// Helper function to convert trending score to icon size
-function getIconSizeMultiplier(trendingScore?: number): number {
-  if (!trendingScore) return 1.0;
-  if (trendingScore <= 20) return 1.0;
-  if (trendingScore <= 40) return 1.25;
-  if (trendingScore <= 60) return 1.5;
-  if (trendingScore <= 80) return 1.75;
-  return 2.0;
 }
 
 // Time filtering helper function
@@ -414,136 +391,11 @@ export default function MapView({
           return null;
         })()}
 
-        {/* Show spots with clustering and trending-based icon sizes */}
-        {fetchCheck.shouldFetch && filteredSpots && filteredSpots.length > 0 && (
-          <MarkerClusterGroup
-            chunkedLoading
-            spiderfyOnMaxZoom
-            showCoverageOnHover={false}
-            maxClusterRadius={60}
-          >
-            {filteredSpots.map((spot) => {
-              const cat = spot.category || 'default';
-              const IconComponent = categoryIcons[cat] || categoryIcons.default;
-              const iconColor = categoryColors[cat] || categoryColors.default;
+        {/* Clustered spot markers */}
+        {fetchCheck.shouldFetch && <SpotMarkers spots={filteredSpots || []} onSelectSpot={onSelectSpot} />}
 
-              // Calculate icon size based on trending score
-              const trendingScore = (spot as any).trending_score || 0;
-              const sizeMultiplier = getIconSizeMultiplier(trendingScore);
-              const finalSize = 20 * sizeMultiplier;
-
-              const icon = createCustomIcon(IconComponent, iconColor, finalSize);
-
-              return (
-                <Marker
-                  key={`spot-${spot.id}`}
-                  position={[spot.location[0], spot.location[1]]}
-                  icon={icon}
-                >
-                  <Popup>
-                    <div
-                      onClick={() => onSelectSpot(spot, "spot")}
-                      className="cursor-pointer hover:bg-gray-50 -m-3 p-3 rounded"
-                    >
-                      <div className="font-bold text-base mb-1">{spot.name}</div>
-                      {spot.category && (
-                        <div className="text-xs text-gray-600 capitalize mb-2">{spot.category}</div>
-                      )}
-                      {spot.description && (
-                        <div className="text-sm text-gray-700 mb-2">{spot.description}</div>
-                      )}
-                      {trendingScore > 0 && (
-                        <div className="text-xs text-blue-600 font-medium">
-                          🔥 Trending
-                        </div>
-                      )}
-                      <div className="text-xs text-blue-600 font-medium mt-2">
-                        Click to view details →
-                      </div>
-                    </div>
-                  </Popup>
-                </Marker>
-              );
-            })}
-          </MarkerClusterGroup>
-        )}
-
-        {/* Show events with clustering and trending-based icon sizes and colors */}
-        {fetchCheck.shouldFetch && filteredEvents && filteredEvents.length > 0 && (
-          <MarkerClusterGroup
-            chunkedLoading
-            spiderfyOnMaxZoom
-            showCoverageOnHover={false}
-            maxClusterRadius={60}
-            iconCreateFunction={createEventClusterIcon}
-          >
-            {filteredEvents.map((event: any) => {
-              const cat = event.category || 'default';
-              const IconComponent = categoryIcons[cat] || categoryIcons.default;
-
-              // Calculate icon size based on trending score
-              const trendingScore = event.trending_score || 0;
-              const sizeMultiplier = getIconSizeMultiplier(trendingScore);
-              const finalSize = 20 * sizeMultiplier;
-
-              // Determine background color based on trending score
-              let backgroundColor = 'white';
-              if (trendingScore > 0 && trendingScore <= 30) {
-                backgroundColor = '#FCD34D';
-              } else if (trendingScore > 30 && trendingScore <= 60) {
-                backgroundColor = '#FB923C';
-              } else if (trendingScore > 60) {
-                backgroundColor = '#EF4444';
-              }
-
-              const icon = createCustomIcon(IconComponent, backgroundColor, finalSize, { isEvent: true });
-
-              return (
-                <Marker
-                  key={`event-${event.id}`}
-                  position={[event.location[0], event.location[1]]}
-                  icon={icon}
-                  zIndexOffset={1000}
-                >
-                  <Popup>
-                    <div
-                      onClick={() => onSelectSpot(event, "event")}
-                      className="cursor-pointer hover:bg-gray-50 -m-3 p-3 rounded"
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="font-bold text-base">{event.name}</div>
-                        <span className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded font-bold">
-                          EVENT
-                        </span>
-                      </div>
-                      {event.category && (
-                        <div className="text-xs text-gray-600 capitalize mb-2">{event.category}</div>
-                      )}
-                      {event.description && (
-                        <div className="text-sm text-gray-700 mb-2">{event.description}</div>
-                      )}
-                      {event.start_time && (
-                        <div className="text-xs text-gray-500 mb-2">
-                          📅 {new Date(event.start_time).toLocaleDateString('en-GB')} {new Date(event.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      )}
-                      {trendingScore > 0 && (
-                        <div className="text-xs font-medium mb-1">
-                          {trendingScore <= 30 && <span className="text-yellow-600"> Trending </span>}
-                          {trendingScore > 30 && trendingScore <= 60 && <span className="text-orange-600"> 🔥 Trending </span>}
-                          {trendingScore > 60 && <span className="text-red-600"> 🔥 Very Trending</span>}
-                        </div>
-                      )}
-                      <div className="text-xs text-blue-600 font-medium mt-2">
-                        Click to view details →
-                      </div>
-                    </div>
-                  </Popup>
-                </Marker>
-              );
-            })}
-          </MarkerClusterGroup>
-        )}
+        {/* Clustered event markers */}
+        {fetchCheck.shouldFetch && <EventMarkers events={filteredEvents || []} onSelectSpot={onSelectSpot} />}
       </MapContainer>
 
       {/* Filter Panel */}
