@@ -1,18 +1,10 @@
 import { Marker, Popup } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
-import { categoryIcons, createCustomIcon } from "../icons";
+import { categoryIcons, createCustomIcon, getIconSizeMultiplier } from "../icons";
 import L from "leaflet";
 
-function getIconSizeMultiplier(trendingScore?: number): number {
-  if (!trendingScore) return 1.0;
-  if (trendingScore <= 20) return 1.0;
-  if (trendingScore <= 40) return 1.25;
-  if (trendingScore <= 60) return 1.5;
-  if (trendingScore <= 80) return 1.75;
-  return 2.0;
-}
-
-const createEventClusterIcon = (cluster: L.MarkerCluster) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const createEventClusterIcon = (cluster: any) => {
   const count = cluster.getChildCount();
   return L.divIcon({
     html: `<div style="background: #f97316; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">${count}</div>`,

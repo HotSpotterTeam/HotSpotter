@@ -44,6 +44,15 @@ export const categoryColors: Record<string, string> = {
     default: '#64748B'
 };
 
+export function getIconSizeMultiplier(trendingScore?: number): number {
+    if (!trendingScore) return 1.0;
+    if (trendingScore <= 20) return 1.0;
+    if (trendingScore <= 40) return 1.25;
+    if (trendingScore <= 60) return 1.5;
+    if (trendingScore <= 80) return 1.75;
+    return 2.0;
+}
+
 export const createCustomIcon = (
     IconComponent: any,
     color: string = '#3B82F6',

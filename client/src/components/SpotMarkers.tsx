@@ -1,16 +1,7 @@
 import { Marker, Popup } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
-import { categoryIcons, categoryColors, createCustomIcon } from "../icons";
+import { categoryIcons, categoryColors, createCustomIcon, getIconSizeMultiplier } from "../icons";
 import { Spot } from "../generated-types";
-
-function getIconSizeMultiplier(trendingScore?: number): number {
-  if (!trendingScore) return 1.0;
-  if (trendingScore <= 20) return 1.0;
-  if (trendingScore <= 40) return 1.25;
-  if (trendingScore <= 60) return 1.5;
-  if (trendingScore <= 80) return 1.75;
-  return 2.0;
-}
 
 export default function SpotMarkers({
   spots,
