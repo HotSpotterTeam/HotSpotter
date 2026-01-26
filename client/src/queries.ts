@@ -41,7 +41,8 @@ export function useEvents() {
       if (!response.ok) {
         throw new Error(`Failed to fetch events: ${response.statusText}`);
       }
-      return response.json();
+      const json = await response.json();
+      return json;
     },
     staleTime: 1000 * 60 * 5, 
     enabled: true, // You can add mapBounds !== null if you want to wait for map load
