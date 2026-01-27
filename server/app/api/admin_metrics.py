@@ -141,13 +141,13 @@ async def get_report_metrics(current_user: User = Depends(get_current_user)):
         hourly = session.query(
             func.extract('hour', Report.time).label('hour'),
             func.count(Report.id)
-        ).group_by('hour').all()
+        ).filter(Report.time != None).group_by('hour').all()
 
         # Weekly (0=Sunday)
         daily = session.query(
             func.extract('dow', Report.date).label('dow'),
             func.count(Report.id)
-        ).group_by('dow').all()
+        ).filter(Report.date != None).group_by('dow').all()
 
         # Fill missing hours/days with 0
         hours_map = {int(h): c for h, c in hourly}

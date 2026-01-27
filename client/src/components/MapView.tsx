@@ -454,7 +454,7 @@ export default function MapView({
       {spotsLoading && fetchCheck.shouldFetch && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2">
           <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
-          <span className="text-sm">Loading spots...</span>
+          <span className="text-sm">Loading spots and events...</span>
         </div>
       )}
 
