@@ -1,0 +1,1 @@
+# HotSpotter server app package

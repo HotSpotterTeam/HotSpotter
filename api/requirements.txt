@@ -1,0 +1,18 @@
+fastapi>=0.95
+python-multipart
+
+# Database
+SQLAlchemy>=2.0
+python-dotenv>=1.0
+geoalchemy2>=0.11.1
+psycopg2-binary>=2.9.10
+shapely>=2.0.0
+
+# auth
+python-jose[cryptography]>=3.5.0
+google-auth>=2.43.0
+requests>=2.31.0
+bcrypt>=5.0.0
+
+# timezone
+pytz>=2025.2
