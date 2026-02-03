@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { setEvents } from "./state/EventsSlice";
+import { mergeSpots, isRegionLoaded, getSpotsInBounds } from "./state/SpotsSlice";
 import { Event, Spot } from "./generated-types";
 import { useAppSelector } from "./store/hooks";
 import { RootState } from "./state/store";
@@ -9,14 +10,37 @@ import { RootState } from "./state/store";
 const API_URL =
   import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "http://127.0.0.1:8000";
 
+export type Bounds = {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+};
+
+// Expand bounds by a percentage to pre-fetch nearby areas
+function expandBounds(bounds: Bounds, expansionFactor: number = 0.3): Bounds {
+  const latRange = bounds.maxLat - bounds.minLat;
+  const lngRange = bounds.maxLng - bounds.minLng;
+  const latExpansion = latRange * expansionFactor;
+  const lngExpansion = lngRange * expansionFactor;
+
+  return {
+    minLat: bounds.minLat - latExpansion,
+    maxLat: bounds.maxLat + latExpansion,
+    minLng: bounds.minLng - lngExpansion,
+    maxLng: bounds.maxLng + lngExpansion,
+  };
+}
+
 export function useEvents() {
   const dispatch = useDispatch();
-  // 1. Listen to map bounds (Just like useSpots)
   const mapBounds = useAppSelector((state: RootState) => state.app.mapBounds);
 
-  // 2. Add bounds to the cache key so it refetches when map moves
-  const queryKey = mapBounds
-    ? ["events", mapBounds.minLat, mapBounds.maxLat, mapBounds.minLng, mapBounds.maxLng]
+  // Use expanded bounds to pre-fetch nearby events
+  const fetchBounds = mapBounds ? expandBounds(mapBounds, 0.5) : null;
+
+  const queryKey = fetchBounds
+    ? ["events", fetchBounds.minLat, fetchBounds.maxLat, fetchBounds.minLng, fetchBounds.maxLng]
     : ["events"];
 
   const { isPending, error, data } = useQuery({
@@ -24,15 +48,14 @@ export function useEvents() {
     queryFn: async () => {
       let url = `${API_URL}/api/events/`;
 
-      // 3. Append Bounding Box params if they exist
-      if (mapBounds) {
+      if (fetchBounds) {
         const params = new URLSearchParams({
-          min_lat: mapBounds.minLat.toString(),
-          max_lat: mapBounds.maxLat.toString(),
-          min_lng: mapBounds.minLng.toString(),
-          max_lng: mapBounds.maxLng.toString(),
+          min_lat: fetchBounds.minLat.toString(),
+          max_lat: fetchBounds.maxLat.toString(),
+          min_lng: fetchBounds.minLng.toString(),
+          max_lng: fetchBounds.maxLng.toString(),
           status: 'all',
-          limit: '500', // Fetch up to 500 events for the map view
+          limit: '500',
         });
         url += `?${params.toString()}`;
       }
@@ -44,13 +67,12 @@ export function useEvents() {
       const json = await response.json();
       return json;
     },
-    staleTime: 1000 * 60 * 5, 
-    enabled: true, // You can add mapBounds !== null if you want to wait for map load
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    enabled: true,
   });
 
   useEffect(() => {
     if (data) {
-      // Handle response format
       const events = Array.isArray(data) ? data : (data.data || []);
       dispatch(setEvents(events as Event[]));
     }
@@ -59,59 +81,82 @@ export function useEvents() {
   return { isPending, error, data: data?.data as Event[] || (Array.isArray(data) ? data : []) };
 }
 
-export type Bounds = {
-  minLat: number;
-  maxLat: number;
-  minLng: number;
-  maxLng: number;
-};
-
 export function useSpots() {
+  const dispatch = useDispatch();
   const mapBounds = useAppSelector((state: RootState) => state.app.mapBounds);
   const mapZoom = useAppSelector((state: RootState) => state.app.mapZoom);
-  
-  const queryKey = mapBounds
-    ? ["spots", mapBounds.minLat, mapBounds.maxLat, mapBounds.minLng, mapBounds.maxLng]
-    : ["spots"];
+
+  // Get cached data from Redux
+  const spotsById = useAppSelector((state: RootState) => state.spots.spotsById);
+  const loadedRegions = useAppSelector((state: RootState) => state.spots.loadedRegions);
+  const totalInView = useAppSelector((state: RootState) => state.spots.totalInView);
+
+  // Expand bounds to pre-fetch nearby areas (50% expansion)
+  const fetchBounds = mapBounds ? expandBounds(mapBounds, 0.5) : null;
+
+  // Check if we already have data for this region
+  const regionAlreadyLoaded = fetchBounds ? isRegionLoaded(loadedRegions, fetchBounds) : false;
+
+  // Only include bounds in query key if region not loaded yet
+  // This prevents refetching when we already have the data
+  const queryKey = fetchBounds && !regionAlreadyLoaded
+    ? ["spots", "fetch", fetchBounds.minLat, fetchBounds.maxLat, fetchBounds.minLng, fetchBounds.maxLng]
+    : ["spots", "cached"];
 
   const { isPending, error, data, refetch } = useQuery({
     queryKey,
     queryFn: async () => {
-      let url = `${API_URL}/api/spots/`;
-      
-      if (mapBounds) {
-        const params = new URLSearchParams({
-          min_lat: mapBounds.minLat.toString(),
-          max_lat: mapBounds.maxLat.toString(),
-          min_lng: mapBounds.minLng.toString(),
-          max_lng: mapBounds.maxLng.toString(),
-          is_approved: 'true', // Only show approved spots on the map
-          limit: '500', // Fetch up to 500 spots for the map view
-        });
-        url += `?${params.toString()}`;
-      } else {
-        url += '?is_approved=true&limit=500'; // Only show approved spots
+      // If region already loaded, don't fetch
+      if (regionAlreadyLoaded || !fetchBounds) {
+        return { spots: [], total: totalInView, fromCache: true };
       }
-      
+
+      let url = `${API_URL}/api/spots/`;
+
+      const params = new URLSearchParams({
+        min_lat: fetchBounds.minLat.toString(),
+        max_lat: fetchBounds.maxLat.toString(),
+        min_lng: fetchBounds.minLng.toString(),
+        max_lng: fetchBounds.maxLng.toString(),
+        is_approved: 'true',
+        limit: '500',
+      });
+      url += `?${params.toString()}`;
+
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch spots');
-      return res.json();
+      const json = await res.json();
+      return { ...json, bounds: fetchBounds, fromCache: false };
     },
-    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
-    enabled: mapBounds !== null,
+    staleTime: 1000 * 60 * 30, // Consider stale after 30 minutes
+    enabled: mapBounds !== null && !regionAlreadyLoaded,
   });
-  
-  const total = data?.total || 0;
-  const spots = data?.spots as Spot[] || [];
-  
-  // Check if we should display spots based on zoom level and count
-  const fetchCheck = shouldFetchSpots(mapZoom, total);
 
-  return { 
-    isPending, 
-    error, 
-    spots, 
-    total,
+  // Merge new spots into cache when data arrives
+  useEffect(() => {
+    if (data && !data.fromCache && data.spots && data.bounds) {
+      dispatch(mergeSpots({
+        spots: data.spots,
+        bounds: data.bounds,
+        total: data.total || 0,
+      }));
+    }
+  }, [data, dispatch]);
+
+  // Get spots for current view from cache
+  const spotsInView = useMemo(() => {
+    if (!mapBounds) return [];
+    return getSpotsInBounds(spotsById, mapBounds);
+  }, [spotsById, mapBounds]);
+
+  // Check if we should display spots based on zoom level and count
+  const fetchCheck = shouldFetchSpots(mapZoom, spotsInView.length);
+
+  return {
+    isPending: isPending && !regionAlreadyLoaded,
+    error,
+    spots: spotsInView,
+    total: spotsInView.length,
     refetch,
     fetchCheck
   };
@@ -119,15 +164,13 @@ export function useSpots() {
 
 // Function to check if we should fetch spots based on zoom level
 export function shouldFetchSpots(zoom: number, spotCount?: number): { shouldFetch: boolean; message?: string } {
-  // Too zoomed out - lowered from 13 to 10 since clustering handles many markers
   if (zoom < 10) {
     return { shouldFetch: false, message: "Zoom in to see spots" };
   }
-  
-  // If we have count and it's too many
+
   if (spotCount && spotCount > 500) {
     return { shouldFetch: false, message: "Too many spots. Zoom in to see details" };
   }
-  
+
   return { shouldFetch: true };
 }
