@@ -1,39 +1,43 @@
 from fastapi import APIRouter, status, Query, Path, Depends, HTTPException
-from sqlalchemy import func, desc, or_
+from sqlalchemy import func, desc, or_, select
+from sqlalchemy.orm import joinedload
 from app.db import get_session
 from app.models import Event, User, Spot, Report
 from app.api.api_models import CreateEvent, EventsResponse, EventResponse, UpdateEvent
 from app.api.auth_utils import get_current_user
 from geoalchemy2 import WKTElement
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, time as dt_time, timedelta, timezone
 import pytz
+import time
 from app.notification_utils import notify_event_approved, notify_event_created_at_spot
-from app.trending import calculate_trending_score
-
-LOCAL_TZ = pytz.timezone('Asia/Jerusalem')
-
+from app.trending import calculate_trending_score, calculate_trending_scores_batch
+from app.profiling import TimingContext
 from app.hs_logging import log_user_action, get_request_session_id
+import logging
+
+LOCAL_TZ = pytz.timezone("Asia/Jerusalem")
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
 @router.get("/", status_code=status.HTTP_200_OK)
 async def list_events(
-        search: str | None = Query(None, description="Search text in event name"),
-        category: str | None = Query(None),
-        status: str = Query("active", description="Status to filter by (default: active)"),
-        owner_id: int | None = Query(None, description="Filter by event creator"),
-        spot_id: int | None = Query(None, description="Filter by attached spot"),
-        sort_by: str | None = Query("creation", description="Options: 'creation', 'reports'"),
-        lat: float | None = Query(None),
-        lng: float | None = Query(None),
-        radius: float = Query(5000, description="Radius in meters"),
-        min_lat: float | None = Query(None, description="Minimum latitude for bounding box"),
-        max_lat: float | None = Query(None, description="Maximum latitude for bounding box"),
-        min_lng: float | None = Query(None, description="Minimum longitude for bounding box"),
-        max_lng: float | None = Query(None, description="Maximum longitude for bounding box"),
-        page: int = Query(1, ge=1),
-        limit: int = Query(50, ge=1, le=1000)
+    search: str | None = Query(None, description="Search text in event name"),
+    category: str | None = Query(None),
+    status: str = Query("active", description="Status to filter by (default: active)"),
+    owner_id: int | None = Query(None, description="Filter by event creator"),
+    spot_id: int | None = Query(None, description="Filter by attached spot"),
+    sort_by: str | None = Query("creation", description="Options: 'creation', 'reports'"),
+    lat: float | None = Query(None),
+    lng: float | None = Query(None),
+    radius: float = Query(5000, description="Radius in meters"),
+    min_lat: float | None = Query(None, description="Minimum latitude for bounding box"),
+    max_lat: float | None = Query(None, description="Maximum latitude for bounding box"),
+    min_lng: float | None = Query(None, description="Minimum longitude for bounding box"),
+    max_lng: float | None = Query(None, description="Maximum longitude for bounding box"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=1000),
 ):
     """
     Get all events.
@@ -41,71 +45,120 @@ async def list_events(
     - Managers/Creators can fetch 'pending' by passing ?status=pending
     - Now includes trending_score for each event!
     """
+    start_time = time.time()
     with get_session() as session:
-        query = session.query(Event)
+        # Build optimized query that extracts lat/lng directly in SQL
+        # and joins spot/organizer for their names
+        query = session.query(
+            Event.id,
+            Event.name,
+            Event.description,
+            Event.start_time,
+            Event.end_time,
+            Event.category,
+            Event.external_link,
+            Event.status,
+            Event.spot_id,
+            Event.owner_id,
+            func.ST_Y(Event.location).label('lat'),  # Extract lat directly in SQL
+            func.ST_X(Event.location).label('lng'),  # Extract lng directly in SQL
+            Spot.name.label('spot_name'),
+            User.name.label('user_name'),
+        ).outerjoin(Spot, Event.spot_id == Spot.id).outerjoin(User, Event.owner_id == User.id)
+
+        # Build filter conditions
+        filters = []
 
         if search:
-            conditions = [
+            search_conditions = [
                 Event.name.ilike(f"%{search}%"),
                 Event.description.ilike(f"%{search}%"),
                 Event.status.ilike(f"%{search}%"),
             ]
             if search.isdigit():
-                conditions.append(Event.id == int(search))
-                conditions.append(Event.owner_id == int(search))
-                conditions.append(Event.spot_id == int(search))
-
-            query = query.filter(or_(*conditions))
+                search_conditions.append(Event.id == int(search))
+                search_conditions.append(Event.owner_id == int(search))
+                search_conditions.append(Event.spot_id == int(search))
+            filters.append(or_(*search_conditions))
 
         # Filter out completed events by default
         if status and status != "all":
-            query = query.filter(Event.status == status)
+            filters.append(Event.status == status)
         else:
             # If status is "all", exclude completed events unless explicitly searching for them
-            query = query.filter(Event.status != 'completed')
+            filters.append(Event.status != "completed")
+
         if category:
-            query = query.filter(Event.category == category)
+            filters.append(Event.category == category)
 
         if owner_id:
-            query = query.filter(Event.owner_id == owner_id)
-        if spot_id:
-            query = query.filter(Event.spot_id == spot_id)
+            filters.append(Event.owner_id == owner_id)
 
-        if lat is not None and lng is not None:
-            user_point = WKTElement(f'POINT({lng} {lat})', srid=4326)
-            query = query.filter(func.ST_DWithin(Event.location, user_point, radius))
+        if spot_id:
+            filters.append(Event.spot_id == spot_id)
 
         if min_lat and max_lat and min_lng and max_lng:
             bbox = func.ST_MakeEnvelope(min_lng, min_lat, max_lng, max_lat, 4326)
-            query = query.filter(func.ST_Within(Event.location, bbox))
-
+            filters.append(func.ST_Within(Event.location, bbox))
         elif lat is not None and lng is not None:
-            user_point = WKTElement(f'POINT({lng} {lat})', srid=4326)
-            query = query.filter(func.ST_DWithin(Event.location, user_point, radius))
+            user_point = WKTElement(f"POINT({lng} {lat})", srid=4326)
+            filters.append(func.ST_DWithin(Event.location, user_point, radius))
 
+        # Apply all filters
+        if filters:
+            query = query.filter(*filters)
+
+        # Optimized count: use a simpler count query without ORDER BY and JOINs
+        with TimingContext("count_query"):
+            count_query = session.query(func.count(Event.id))
+            if filters:
+                count_query = count_query.filter(*filters)
+            total_count = count_query.scalar()
+
+        # Apply sorting
         if sort_by == "reports":
-            query = query.outerjoin(Report).group_by(Event.id).order_by(func.count(Report.id).desc())
+            # For report sorting, we need a subquery
+            report_count = select(func.count(Report.id)).where(Report.event_id == Event.id).correlate(Event).scalar_subquery()
+            query = query.order_by(report_count.desc())
         else:
             query = query.order_by(Event.id.desc())
 
-        total_count = query.count()
         offset = (page - 1) * limit
-        events = query.offset(offset).limit(limit).all()
+        with TimingContext("fetch_events"):
+            rows = query.offset(offset).limit(limit).all()
 
-        events_with_trending = []
-        for event in events:
-            event_dict = event.to_api_model()
-            event_dict['trending_score'] = calculate_trending_score(
-                event_id=event.id,
-                session=session
-            )
-            events_with_trending.append(event_dict)
+        # Batch calculate trending scores for all events at once
+        event_ids = [row.id for row in rows]
+        with TimingContext("trending_scores"):
+            trending_scores = calculate_trending_scores_batch(event_ids=event_ids, session=session) if event_ids else {}
 
-        return {
-            "status": "success",
-            "data": events_with_trending,
-            "total": total_count
-        }
+        with TimingContext("serialize_events"):
+            events_with_trending = []
+            for row in rows:
+                # Build dict directly from query results - no to_shape() needed!
+                event_dict = {
+                    "id": row.id,
+                    "name": row.name,
+                    "description": row.description,
+                    "location": [row.lat, row.lng] if row.lat and row.lng else None,
+                    "start_time": row.start_time.isoformat() if row.start_time else None,
+                    "end_time": row.end_time.isoformat() if row.end_time else None,
+                    "category": row.category,
+                    "external_link": row.external_link,
+                    "status": row.status,
+                    "spot_id": row.spot_id,
+                    "spot_name": row.spot_name,
+                    "owner_id": row.owner_id,
+                    "user_name": row.user_name,
+                    "trending_score": trending_scores.get(row.id, 0),
+                }
+                events_with_trending.append(event_dict)
+
+        total_time = time.time() - start_time
+        if total_time > 0.5:
+            logger.warning(f"[PERF] list_events took {total_time:.3f}s for {len(events_with_trending)} events")
+
+        return {"status": "success", "data": events_with_trending, "total": total_count}
 
 
 @router.get("/{id}", status_code=status.HTTP_200_OK)
@@ -120,19 +173,16 @@ async def get_event(id: int = Path(..., ge=1)):
             raise HTTPException(status_code=404, detail="Event not found")
 
         event_dict = event.to_api_model()
-        event_dict['trending_score'] = calculate_trending_score(
-            event_id=event.id,
-            session=session
-        )
+        event_dict["trending_score"] = calculate_trending_score(event_id=event.id, session=session)
 
         return event_dict
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_event(
-        event_data: CreateEvent,
-        current_user: User = Depends(get_current_user),
-        request_session_id=Depends(get_request_session_id)
+    event_data: CreateEvent,
+    current_user: User = Depends(get_current_user),
+    request_session_id=Depends(get_request_session_id),
 ):
     """
     Create a new event.
@@ -158,7 +208,7 @@ async def create_event(
             status_str = "pending-start"
             if event_data.custom_location and len(event_data.custom_location) == 2:
                 lat, lng = event_data.custom_location
-                location_wkt = WKTElement(f'POINT({lng} {lat})', srid=4326)
+                location_wkt = WKTElement(f"POINT({lng} {lat})", srid=4326)
             else:
                 raise HTTPException(status_code=400, detail="Custom location required when spot_id is not provided")
 
@@ -175,7 +225,7 @@ async def create_event(
             external_link=event_data.external_link,
             owner_id=current_user.id,
             spot_id=event_data.spot_id,
-            status=status_str
+            status=status_str,
         )
         session.add(new_event)
         session.commit()
@@ -190,24 +240,21 @@ async def create_event(
             action="create_event",
             user=current_user,
             new_data={"name": event_data.name, "category": event_data.category, "event_id": new_event.id},
-            request_session_id=request_session_id
+            request_session_id=request_session_id,
         )
 
         event_dict = new_event.to_api_model()
-        event_dict['trending_score'] = calculate_trending_score(
-            event_id=new_event.id,
-            session=session
-        )
+        event_dict["trending_score"] = calculate_trending_score(event_id=new_event.id, session=session)
 
         return event_dict
 
 
 @router.put("/{id}", status_code=status.HTTP_200_OK)
 async def update_event(
-        id: int,
-        event_update: UpdateEvent,
-        current_user: User = Depends(get_current_user),
-        request_session_id=Depends(get_request_session_id)
+    id: int,
+    event_update: UpdateEvent,
+    current_user: User = Depends(get_current_user),
+    request_session_id=Depends(get_request_session_id),
 ):
     """
     Update an existing event.
@@ -240,23 +287,18 @@ async def update_event(
             action="update_event",
             user=current_user,
             new_data={"event_id": event.id, "updated_fields": event_update.dict(exclude_unset=True)},
-            request_session_id=request_session_id
+            request_session_id=request_session_id,
         )
 
         event_dict = event.to_api_model()
-        event_dict['trending_score'] = calculate_trending_score(
-            event_id=event.id,
-            session=session
-        )
+        event_dict["trending_score"] = calculate_trending_score(event_id=event.id, session=session)
 
         return event_dict
 
 
 @router.delete("/{id}", status_code=status.HTTP_200_OK)
 async def delete_event(
-        id: int,
-        current_user: User = Depends(get_current_user),
-        request_session_id=Depends(get_request_session_id)
+    id: int, current_user: User = Depends(get_current_user), request_session_id=Depends(get_request_session_id)
 ):
     """
     Delete an event.
@@ -273,10 +315,7 @@ async def delete_event(
         session.commit()
 
         log_user_action(
-            action="delete_event",
-            user=current_user,
-            new_data={"event_id": id},
-            request_session_id=request_session_id
+            action="delete_event", user=current_user, new_data={"event_id": id}, request_session_id=request_session_id
         )
 
         return {"status": "success", "message": "Event deleted"}
@@ -284,9 +323,9 @@ async def delete_event(
 
 @router.put("/{id}/approve", status_code=status.HTTP_200_OK)
 async def approve_event(
-        id: int = Path(...),
-        current_user: User = Depends(get_current_user),
-        request_session_id=Depends(get_request_session_id)
+    id: int = Path(...),
+    current_user: User = Depends(get_current_user),
+    request_session_id=Depends(get_request_session_id),
 ):
     """
     Approve an event at a spot.
@@ -311,8 +350,10 @@ async def approve_event(
 
         event.status = "pending-start"
         session.commit()
-        
+
         notify_event_approved(event.id, event.name, event.owner_id)
-        
-        log_user_action("approve_event", current_user, new_data=event.to_api_model(), request_session_id=request_session_id)
+
+        log_user_action(
+            "approve_event", current_user, new_data=event.to_api_model(), request_session_id=request_session_id
+        )
         return {"status": "success", "message": "Event approved and will start at scheduled time"}

@@ -2,9 +2,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.hs_logging import middleware_http_request_logger
+from app.profiling import TimingMiddleware
 import logging
+import os
 
-from .api import auth, events, reports, admin, utils, spots, favorites,notifications, admin_metrics
+from .api import auth, events, reports, admin, utils, spots, favorites, notifications, admin_metrics
 from .scheduler import start_scheduler, stop_scheduler, schedule_event_status_updates
 
 logger = logging.getLogger(__name__)
@@ -44,6 +46,7 @@ app.add_middleware(
 )
 
 app.middleware("http")(middleware_http_request_logger)
+app.add_middleware(TimingMiddleware)  # Add timing middleware for performance profiling
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(events.router, prefix="/api/events", tags=["events"])

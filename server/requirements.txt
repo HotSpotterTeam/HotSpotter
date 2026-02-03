@@ -19,3 +19,6 @@ bcrypt>=5.0.0
 #scheduler
 pytz>= 2025.2
 apscheduler >=3.11.2
+
+#profiling
+pyinstrument>=5.0.0

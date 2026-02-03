@@ -9,7 +9,8 @@ import NotificationsPanel from "./NotificationsPanel";
 import { setShowAdminDashboard, setShowUserProfile, setShowCreateEvent, setShowCreateSpot } from "../state/AppSlice";
 
 const TopBar = () => {
-  const events = useSelector((state: RootState) => state.events.events);
+  const eventsById = useSelector((state: RootState) => state.events.eventsById);
+  const events = Object.values(eventsById);
   const { isAuthenticated, user } = useAppSelector((state) => state.auth);
   const showAdminDashboard = useAppSelector((state: RootState) => state.app.showAdminDashboard);
   const showUserProfile = useAppSelector((state: RootState) => state.app.showUserProfile);

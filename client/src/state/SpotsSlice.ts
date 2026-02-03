@@ -76,12 +76,13 @@ export function isRegionLoaded(loadedRegions: Bounds[], bounds: Bounds): boolean
 // Helper to get spots within bounds from cache
 export function getSpotsInBounds(spotsById: Record<number, Spot>, bounds: Bounds): Spot[] {
   return Object.values(spotsById).filter(spot => {
-    if (!spot.lat || !spot.lng) return false;
+    if (!spot.location || spot.location.length < 2) return false;
+    const [lat, lng] = spot.location;
     return (
-      spot.lat >= bounds.minLat &&
-      spot.lat <= bounds.maxLat &&
-      spot.lng >= bounds.minLng &&
-      spot.lng <= bounds.maxLng
+      lat >= bounds.minLat &&
+      lat <= bounds.maxLat &&
+      lng >= bounds.minLng &&
+      lng <= bounds.maxLng
     );
   });
 }

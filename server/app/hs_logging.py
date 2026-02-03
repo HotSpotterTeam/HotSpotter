@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import uuid
 import asyncio
 import re
+import time
 from app.db import get_session
 from app.models import Http_Log, User_Action_Log
 from starlette.requests import Request as StarletteRequest
@@ -50,20 +51,44 @@ async def middleware_http_request_logger(request: Request, call_next):
     try:
         # Processing the request
         response = await call_next(request_copy)
-
-        # Processing the response
-        b_response_body = await get_response_body(response)
         response_time = datetime.now(timezone.utc).replace(microsecond=0).replace(tzinfo=None)
-        response_body = b_response_body.decode("utf-8", errors="ignore")
         status_code = response.status_code
-        response_copy =  Response( 
-            content=b_response_body,
-            status_code=response.status_code,
-            headers=dict(response.headers),
-            media_type=response.media_type,
-        )
-
-        return response_copy
+        
+        # Skip reading response body for large list endpoints to avoid blocking
+        # These endpoints return large JSON responses that don't need to be logged
+        skip_body_logging_paths = ["/api/spots/", "/api/events/"]
+        skip_body_logging = any(request.url.path.startswith(path) for path in skip_body_logging_paths)
+        
+        if skip_body_logging:
+            # For large list endpoints, don't read the body - just pass through
+            # This avoids blocking on reading several MB of JSON
+            response_body = f"[Skipped logging for {request.url.path}]"
+            # Schedule async logging without blocking
+            asyncio.create_task(write_response_to_db_async(status_code, response_body, request_session_id, response_time))
+            return response
+        else:
+            # For other endpoints, read body but limit size
+            read_start = time.time()
+            b_response_body = await get_response_body(response)
+            read_time = time.time() - read_start
+            if read_time > 0.1:
+                logger.warning(f"[MIDDLEWARE] Reading response body took {read_time:.3f}s for {request.url.path}")
+            
+            MAX_LOG_BODY_SIZE = 50 * 1024  # 50KB
+            if len(b_response_body) < MAX_LOG_BODY_SIZE:
+                response_body = b_response_body.decode("utf-8", errors="ignore")
+            else:
+                response_body = f"[Response body too large: {len(b_response_body)} bytes]"
+            
+            response_copy = Response( 
+                content=b_response_body,
+                status_code=response.status_code,
+                headers=dict(response.headers),
+                media_type=response.media_type,
+            )
+            # Schedule async logging
+            asyncio.create_task(write_response_to_db_async(status_code, response_body, request_session_id, response_time))
+            return response_copy
     
     except Exception as e:
         logger.exception(f"Exception during request processing: {e}")
@@ -75,8 +100,7 @@ async def middleware_http_request_logger(request: Request, call_next):
     finally:
         try:
             await logging_task
-            # Adding response to db 
-            write_response_to_db(status_code, response_body, request_session_id, response_time)
+            # Response logging is now handled inside the try block above
         except Exception as e:
             logger.exception(f"Failed to log HTTP request, exception {e}")
             
@@ -131,6 +155,13 @@ def write_response_to_db(status_code, response_body, request_session_id, respons
             log_record.response_data = response_body
             log_record.end_time = response_time
             session.commit()
+
+async def write_response_to_db_async(status_code, response_body, request_session_id, response_time):
+    """Async wrapper to write response to DB without blocking."""
+    import asyncio
+    # Run in thread pool to avoid blocking
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, write_response_to_db, status_code, response_body, request_session_id, response_time)
 
 def log_user_action(action, user, new_data, request_session_id, old_data=None): 
     """Logs a user action to the database ."""

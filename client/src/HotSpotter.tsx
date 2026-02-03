@@ -38,10 +38,10 @@ const HotSpotter = () => {
   );
   const dispatch = useDispatch();
 
-  const eventsFromStore = useSelector(
-    (state: RootState) => state.events.events
+  const eventsById = useSelector(
+    (state: RootState) => state.events.eventsById
   );
-  const eventsList = Array.isArray(eventsFromStore) ? eventsFromStore : [];
+  const eventsList = Object.values(eventsById);
 
   const onSelectMapItem = (item: any, type: "spot" | "event") => {
     if (type === "spot") {

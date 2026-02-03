@@ -262,7 +262,8 @@ export default function MapView({
     mapFilters.distanceFilter.enabled;
 
 
-  const events = useSelector((state: RootState) => state.events.events);
+  const eventsById = useSelector((state: RootState) => state.events.eventsById);
+  const events = Object.values(eventsById);
 
   const { spots, total, isPending: spotsLoading, fetchCheck } = useSpots();
   useEvents();

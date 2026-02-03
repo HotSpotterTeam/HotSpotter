@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
 import { useEffect, useMemo } from "react";
-import { setEvents } from "./state/EventsSlice";
+import { mergeEvents, isEventRegionLoaded, getEventsInBounds } from "./state/EventsSlice";
 import { mergeSpots, isRegionLoaded, getSpotsInBounds } from "./state/SpotsSlice";
 import { Event, Spot } from "./generated-types";
 import { useAppSelector } from "./store/hooks";
@@ -36,49 +36,78 @@ export function useEvents() {
   const dispatch = useDispatch();
   const mapBounds = useAppSelector((state: RootState) => state.app.mapBounds);
 
-  // Use expanded bounds to pre-fetch nearby events
+  // Get cached data from Redux
+  const eventsById = useAppSelector((state: RootState) => state.events.eventsById);
+  const loadedRegions = useAppSelector((state: RootState) => state.events.loadedRegions);
+  const totalInView = useAppSelector((state: RootState) => state.events.totalInView);
+
+  // Expand bounds to pre-fetch nearby areas (50% expansion)
   const fetchBounds = mapBounds ? expandBounds(mapBounds, 0.5) : null;
 
-  const queryKey = fetchBounds
-    ? ["events", fetchBounds.minLat, fetchBounds.maxLat, fetchBounds.minLng, fetchBounds.maxLng]
-    : ["events"];
+  // Check if we already have data for this region
+  const regionAlreadyLoaded = fetchBounds ? isEventRegionLoaded(loadedRegions, fetchBounds) : false;
 
-  const { isPending, error, data } = useQuery({
+  // Only include bounds in query key if region not loaded yet
+  const queryKey = fetchBounds && !regionAlreadyLoaded
+    ? ["events", "fetch", fetchBounds.minLat, fetchBounds.maxLat, fetchBounds.minLng, fetchBounds.maxLng]
+    : ["events", "cached"];
+
+  const { isPending, error, data, refetch } = useQuery({
     queryKey,
     queryFn: async () => {
+      // If region already loaded, don't fetch
+      if (regionAlreadyLoaded || !fetchBounds) {
+        return { events: [], total: totalInView, fromCache: true };
+      }
+
       let url = `${API_URL}/api/events/`;
 
-      if (fetchBounds) {
-        const params = new URLSearchParams({
-          min_lat: fetchBounds.minLat.toString(),
-          max_lat: fetchBounds.maxLat.toString(),
-          min_lng: fetchBounds.minLng.toString(),
-          max_lng: fetchBounds.maxLng.toString(),
-          status: 'all',
-          limit: '500',
-        });
-        url += `?${params.toString()}`;
-      }
+      const params = new URLSearchParams({
+        min_lat: fetchBounds.minLat.toString(),
+        max_lat: fetchBounds.maxLat.toString(),
+        min_lng: fetchBounds.minLng.toString(),
+        max_lng: fetchBounds.maxLng.toString(),
+        status: 'all',
+        limit: '500',
+      });
+      url += `?${params.toString()}`;
 
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch events: ${response.statusText}`);
       }
       const json = await response.json();
-      return json;
+      const events = Array.isArray(json) ? json : (json.data || []);
+      return { events, total: json.total || events.length, bounds: fetchBounds, fromCache: false };
     },
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-    enabled: true,
+    staleTime: 1000 * 60 * 30, // Consider stale after 30 minutes
+    enabled: mapBounds !== null && !regionAlreadyLoaded,
   });
 
+  // Merge new events into cache when data arrives
   useEffect(() => {
-    if (data) {
-      const events = Array.isArray(data) ? data : (data.data || []);
-      dispatch(setEvents(events as Event[]));
+    if (data && !data.fromCache && data.events && data.bounds) {
+      dispatch(mergeEvents({
+        events: data.events as Event[],
+        bounds: data.bounds,
+        total: data.total || 0,
+      }));
     }
   }, [data, dispatch]);
 
-  return { isPending, error, data: data?.data as Event[] || (Array.isArray(data) ? data : []) };
+  // Get events for current view from cache
+  const eventsInView = useMemo(() => {
+    if (!mapBounds) return [];
+    return getEventsInBounds(eventsById, mapBounds);
+  }, [eventsById, mapBounds]);
+
+  return {
+    isPending: isPending && !regionAlreadyLoaded,
+    error,
+    data: eventsInView,
+    total: eventsInView.length,
+    refetch,
+  };
 }
 
 export function useSpots() {
