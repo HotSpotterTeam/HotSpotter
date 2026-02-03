@@ -50,12 +50,14 @@ const getInitialAuthState = (): AuthState => {
 
 const initialState: AuthState = getInitialAuthState(); // load from localStorage
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 // Async thunk for Google login
 export const googleLogin = createAsyncThunk(
   'auth/googleLogin',
   async (googleToken: string, { rejectWithValue }) => {
     try {
-      const response = await fetch('http://localhost:8000/api/auth/google', {
+      const response = await fetch(`${API_URL}/api/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: googleToken }),
