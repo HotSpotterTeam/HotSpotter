@@ -1,6 +1,6 @@
-# HotSpotter API (scaffold)
+# HotSpotter
 
-This directory contains a small FastAPI scaffold for the HotSpotter API. The endpoints are placeholders that return a JSON object with {"status":"TBD"}. No real logic or persistence is implemented.
+
 
 Quick start:
 
@@ -16,47 +16,26 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 Create a .env file in the server directory with the following variables:
-DATABASE_URL="Secret connection string to the db sent on WhatsApp"
+DATABASE_URL=''
+DATABASE_URL_LOCAL="postgresql://postgres:postgres@localhost:5432/hotspotter"
+LOCAL_DB=true
+GOOGLE_CLIENT_ID=141144789026-m90rfocsbhngcds5rhnrpn6uaso48tc1.apps.googleusercontent.com
+JWT_SECRET_KEY=''
 
-# start dev server
-uvicorn app.main:app --reload --port 8000
 
 # Local database setup:
 
-# create local database (works on Windows and Mac/Linux)
+# create local database (works on Windows and Mac/Linux needs Docker)
 python create_local_db.py
 # OR on Mac/Linux:
 # ./create_local_db.sh
 
-Add the following to your .env file:
-DATABASE_URL_LOCAL="postgresql://postgres:postgres@localhost:5432/hotspotter"
-LOCAL_DB=true
+# start dev server
+uvicorn app.main:app --reload --port 8000
 
-Open http://127.0.0.1:8000/docs to explore the auto-generated OpenAPI UI.
+# you can see the api:
+API docs (OpenAPI): http://127.0.0.1:8000/docs
 
-Notes:
-
-- All endpoints return a simple JSON placeholder: {"status": "TBD"}.
-- Implementations, authentication, DB, and validation are intentionally left as TODOs.
-
-## Database migrations (Alembic)
-
-Alembic is configured under `alembic/` and reads `DATABASE_URL` from your environment (or `.env`).
-
-Common commands (run from the `server` directory with the virtualenv activated):
-
-```bash
-# create a new revision
-alembic revision -m "describe change"
-
-# apply migrations
-alembic upgrade head
-
-# roll back the last migration
-alembic downgrade -1
-````
-
-The generated migration scripts live in `alembic/versions/`.
 
 # generate jwt secret key
 ```bash
@@ -68,17 +47,12 @@ The generated migration scripts live in `alembic/versions/`.
 
 To populate your database with real POI (Points of Interest) data from OpenStreetMap:
 
-1. **Apply all database migrations:**
-```bash
-alembic upgrade head
-```
-
-2. **Create a user account** (you need a user ID):
+1. **Create a user account** (you need a user ID):
    - Start the server: `uvicorn app.main:app --reload --port 8000`
    - Log in via Google OAuth or create a user through the API
    - Note your user ID from the response
 
-3. **Run the OSM import script:**
+2. **Run the OSM import script:**
 ```bash
 # Replace bbox with your desired area (min_lat,min_lng,max_lat,max_lng)
 # Replace owner-id with your user ID
