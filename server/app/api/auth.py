@@ -125,9 +125,3 @@ async def get_me(current_user: User = Depends(get_current_user)):
             is_admin=current_user.is_admin
         )
     }
-
-
-@router.put("/profile", status_code=status.HTTP_200_OK)
-async def update_profile():
-    """Update user profile (protected) - TBD"""
-    return {"status": "TBD", "endpoint": "/api/auth/profile"}

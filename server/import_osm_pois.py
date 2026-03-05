@@ -19,6 +19,7 @@ import argparse
 from datetime import datetime
 from typing import List, Dict, Any
 import time
+import random
 
 # Database imports
 from sqlalchemy import create_engine
@@ -30,8 +31,12 @@ import os
 # Load environment variables
 DATABASE_URL_LOCAL = os.environ.get("DATABASE_URL_LOCAL", "postgresql://postgres:postgres@localhost:5432/hotspotter")
 
-# Overpass API endpoint
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+# Overpass API endpoints (fallbacks for timeouts/overload)
+OVERPASS_URLS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.nchc.org.tw/api/interpreter",
+]
 
 # Mapping of our categories to OSM tags
 CATEGORY_MAPPINGS = {
@@ -161,7 +166,7 @@ def build_overpass_query(bbox: str, categories: List[str]) -> str:
     return query
 
 
-def fetch_osm_data(query: str) -> Dict[str, Any]:
+def fetch_osm_data(query: str, max_retries: int = 5) -> Dict[str, Any]:
     """
     Fetch data from Overpass API.
     
@@ -172,13 +177,32 @@ def fetch_osm_data(query: str) -> Dict[str, Any]:
         JSON response from Overpass API
     """
     print("Fetching data from OpenStreetMap...")
-    try:
-        response = requests.post(OVERPASS_URL, data={"data": query}, timeout=120)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching data from Overpass API: {e}")
-        sys.exit(1)
+    last_error: Exception | None = None
+    for attempt in range(1, max_retries + 1):
+        overpass_url = OVERPASS_URLS[(attempt - 1) % len(OVERPASS_URLS)]
+        try:
+            response = requests.post(overpass_url, data={"data": query}, timeout=120)
+            if response.status_code in {429, 502, 503, 504}:
+                raise requests.exceptions.HTTPError(
+                    f"{response.status_code} Server Error: {response.reason} for url: {overpass_url}",
+                    response=response,
+                )
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            last_error = e
+            if attempt == max_retries:
+                break
+            backoff = min(60, (2 ** (attempt - 1))) + random.uniform(0, 1)
+            print(
+                "Overpass request failed (attempt "
+                f"{attempt}/{max_retries}) via {overpass_url}: {e}"
+            )
+            print(f"Retrying in {backoff:.1f}s...")
+            time.sleep(backoff)
+
+    print(f"Error fetching data from Overpass API after {max_retries} attempts: {last_error}")
+    sys.exit(1)
 
 
 def determine_category(tags: Dict[str, str]) -> str:

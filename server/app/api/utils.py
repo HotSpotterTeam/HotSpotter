@@ -23,8 +23,3 @@ async def get_categories():
         all_categories = sorted(list(set(spot_cats + event_cats)))
 
         return all_categories
-
-
-@router.get("/navigation/{eventId}", status_code=status.HTTP_200_OK)
-async def navigation(eventId: str):
-        return {"status": "TBD", "endpoint": f"/api/navigation/{eventId}"}
