@@ -39,16 +39,3 @@ You can run the project locally with Docker (for Postgres), Node.js, and Python.
 - Search for spots and events
 - Navigate to events using navigation apps
 
-## 🔐 How to become an admin
-
-You have two options:
-
-1. **Dev login (quick testing)**
-   - Use the dev login endpoint to create a test admin user.
-   - Endpoint: `POST /api/auth/dev-login?user_id=1`
-
-2. **Database update**
-   - Set `users.is_admin = true` for your user in the database.
-
-Once you have at least one admin, you can promote others using:
-`PUT /api/admin/users/{user_id}/role`

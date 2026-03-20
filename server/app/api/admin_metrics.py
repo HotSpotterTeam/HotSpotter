@@ -87,7 +87,7 @@ async def get_engagement_metrics(
         ).filter(
             Http_Log.start_time >= since_date,
             Http_Log.action == 'POST',
-            (Http_Log.dest_url.like('%/auth/google%') | Http_Log.dest_url.like('%/auth/dev-login%'))
+            Http_Log.dest_url.like('%/auth/google%')
         ).group_by('day').all()
 
         # 2. Created Items
