@@ -10,42 +10,6 @@ from app.hs_logging import log_user_action, get_request_session_id
 router = APIRouter()
 
 
-@router.post("/dev-login")
-async def dev_login(user_id: int = 1):
-    """
-    DEV ONLY: Generate a JWT token for testing.
-    Remove before production!
-    """
-    with get_session() as session:
-        user = session.query(User).filter(User.id == user_id).first()
-
-        if not user:
-            # Create a test user if none exists
-            user = User(
-                email=f"testuser{user_id}@test.com",
-                name=f"Test User {user_id}",
-                google_id=f"test_google_{user_id}",
-                is_admin=True  # Make admin for full testing
-            )
-            session.add(user)
-            session.commit()
-            session.refresh(user)
-
-        # Generate JWT token (same way as google-login does)
-        token = create_access_token({"sub": str(user.id)})
-
-        return {
-            "status": "success",
-            "token": token,
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "name": user.name,
-                "is_admin": user.is_admin
-            }
-        }
-    
-
 @router.post("/google", status_code=status.HTTP_200_OK)
 async def google_login(request: GoogleLoginRequest, request_session_id=Depends(get_request_session_id)):
     """
